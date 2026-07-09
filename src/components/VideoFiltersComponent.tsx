@@ -24,7 +24,7 @@ export default function VideoFiltersComponent({
         <button
           type="button"
           onClick={onResetFilters}
-          className="glass-button flex items-center gap-1.5 text-[11px] text-zinc-200 px-3.5 py-1.5 rounded-xl font-bold"
+          className="glass-button depth-button flex items-center gap-1.5 text-[11px] text-zinc-200 px-3.5 py-1.5 rounded-xl font-bold"
           title="Reset to default"
         >
           <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />

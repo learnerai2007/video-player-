@@ -102,7 +102,7 @@ export default function PlaylistComponent({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`mx-3 my-3 p-3 border border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${
+        className={`mx-3 my-3 p-3 border border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 shadow-inner ${
           isDragging
             ? 'border-indigo-400 bg-indigo-500/10'
             : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
@@ -135,12 +135,12 @@ export default function PlaylistComponent({
               placeholder="Enter video or audio URL..."
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
-              className="w-full bg-black/40 text-[11px] text-zinc-200 pl-8 pr-2.5 py-1.5 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+              className="w-full bg-black/40 text-[11px] text-zinc-200 pl-8 pr-2.5 py-1.5 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all depth-input"
             />
           </div>
           <button
             type="submit"
-            className="glass-primary text-white p-2 rounded-xl hover:scale-105 active:scale-95 transition-all shrink-0"
+            className="glass-primary text-white p-2 rounded-xl hover:scale-105 active:scale-95 transition-all shrink-0 depth-button"
             title="Load URL"
           >
             <Plus className="w-4 h-4" />

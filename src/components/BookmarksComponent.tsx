@@ -59,11 +59,11 @@ export default function BookmarksComponent({
           placeholder="Enter a note..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="flex-1 bg-black/40 text-[11px] text-zinc-200 px-3 py-1.5 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+          className="flex-1 bg-black/40 text-[11px] text-zinc-200 px-3 py-1.5 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all depth-input"
         />
         <button
           type="submit"
-          className="glass-primary text-white text-[11px] px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 shrink-0 transition-all hover:scale-105 active:scale-95"
+          className="glass-primary text-white text-[11px] px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 shrink-0 transition-all hover:scale-105 active:scale-95 depth-button"
           title="Add Bookmark"
         >
           <Plus className="w-3.5 h-3.5" />

@@ -74,7 +74,7 @@ export default function EqualizerComponent({
             value={currentPresetName}
             onChange={(e) => handlePresetSelect(e.target.value)}
             disabled={!eqEnabled}
-            className="flex-1 bg-black/40 border border-white/10 text-zinc-100 text-[11px] rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all hover:bg-white/[0.04]"
+            className="flex-1 bg-black/40 border border-white/10 text-zinc-100 text-[11px] rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 transition-all hover:bg-white/[0.04] depth-input"
           >
             <option value="Custom" disabled>Custom</option>
             {EQ_PRESETS.map((preset) => (
@@ -86,7 +86,7 @@ export default function EqualizerComponent({
         </div>
 
         {/* 10 Band Controls */}
-        <div className="flex-1 flex justify-between items-stretch gap-1.5 h-32 mt-1 overflow-x-auto p-2 bg-black/40 rounded-xl border border-white/10 custom-scrollbar">
+        <div className="flex-1 flex justify-between items-stretch gap-1.5 h-32 mt-1 overflow-x-auto p-2 bg-black/50 rounded-xl border border-white/10 custom-scrollbar shadow-inner">
           {/* Preamp Column */}
           <div className="flex flex-col items-center justify-between flex-1 min-w-[24px]">
             <span className="text-[8px] font-bold text-rose-400 tracking-wider">PRE</span>

@@ -126,6 +126,21 @@ export default function App() {
 
   const [lastVolume, setLastVolume] = useState(0.8);
   const [controlsVisible, setControlsVisible] = useState(true);
+
+  const cycleSpeed = () => {
+    const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    const currentIdx = speeds.indexOf(settings.speed);
+    const nextIdx = currentIdx === -1 ? 2 : (currentIdx + 1) % speeds.length;
+    setSettings((prev) => ({ ...prev, speed: speeds[nextIdx] }));
+  };
+
+  const cycleAspectRatio = () => {
+    const ratios: AspectRatioType[] = ['fit', 'fill', 'stretch', '16:9', '4:3'];
+    const currentIdx = ratios.indexOf(settings.aspectRatio);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % ratios.length;
+    setSettings((prev) => ({ ...prev, aspectRatio: ratios[nextIdx] }));
+  };
+
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const [showSettingsSection, setShowSettingsSection] = useState(true);
   const [showSubtitlesSection, setShowSubtitlesSection] = useState(true);
@@ -690,93 +705,70 @@ export default function App() {
         {/* Left Side: Video Canvas Container */}
         <div className={`${sidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col overflow-y-auto p-1.5 space-y-4 custom-scrollbar`}>
           
-          {/* Top Bar: Now Playing, Stats & Toggles */}
-          <div className="glass-thick p-3 md:p-3.5 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row gap-3.5 items-center justify-between shadow-2xl border border-white/10 hover:border-white/15 transition-all duration-300">
+          {/* Top Bar: Now Playing & Toggles */}
+          <div className="glass-thick depth-card p-3 md:p-3.5 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row gap-3.5 items-center justify-between transition-all duration-300">
             {/* Now Playing info */}
             <div className="flex items-center gap-2.5 w-full sm:w-auto min-w-0">
               <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20 shrink-0">
                 <PlayCircle className={`w-4 h-4 ${isPlaying ? 'animate-pulse' : ''}`} />
               </div>
               <div className="min-w-0">
-                <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider block">Now Playing</span>
-                <p className="text-xs font-bold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md">{currentTrack ? currentTrack.name : 'No file loaded'}</p>
+                <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider block font-sans">Now Playing</span>
+                <p className="text-xs font-bold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md font-sans">{currentTrack ? currentTrack.name : 'No file loaded'}</p>
               </div>
             </div>
 
-            {/* Quick stats with simple symbol icons */}
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
-              <div className="flex items-center gap-3 text-xs font-medium text-zinc-300">
-                {/* Speed Info */}
-                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1.5 rounded-xl" title="Playback speed">
-                  <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="text-[10px] font-bold text-zinc-300 font-mono">{settings.speed.toFixed(2)}x</span>
-                </div>
+            {/* Toggles bar */}
+            <div className="flex items-center gap-1.5 border-t sm:border-t-0 sm:border-l border-white/10 pt-2.5 sm:pt-0 pl-0 sm:pl-3 w-full sm:w-auto justify-end">
+              {/* Keyboard Shortcuts button */}
+              <button
+                onClick={() => setShowShortcutsHelp(true)}
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all"
+                title="Keyboard Shortcuts"
+              >
+                <Keyboard className="w-4 h-4" />
+              </button>
 
-                {/* Aspect Info */}
-                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1.5 rounded-xl" title="Aspect ratio">
-                  <Maximize className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="text-[10px] font-bold text-zinc-300 capitalize">{settings.aspectRatio}</span>
-                </div>
+              <div className="h-4 w-px bg-white/10 mx-0.5 hidden sm:block" />
 
-                {/* Subtitles Info */}
-                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1.5 rounded-xl max-w-[150px]" title="Subtitles loaded">
-                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                  <span className="text-[10px] font-bold text-zinc-300 truncate">{subtitleTrackName}</span>
-                </div>
-              </div>
+              {/* Sidebar toggle button */}
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                  !sidebarCollapsed
+                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                    : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+                title={!sidebarCollapsed ? "Hide Sidebar" : "Show Sidebar"}
+              >
+                <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+              </button>
 
-              {/* Toggles bar */}
-              <div className="flex items-center gap-1.5 border-t sm:border-t-0 sm:border-l border-white/10 pt-2.5 sm:pt-0 pl-0 sm:pl-3 w-full sm:w-auto justify-end">
-                {/* Keyboard Shortcuts button */}
-                <button
-                  onClick={() => setShowShortcutsHelp(true)}
-                  className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all"
-                  title="Keyboard Shortcuts"
-                >
-                  <Keyboard className="w-4 h-4" />
-                </button>
+              {/* Settings toggle button */}
+              <button
+                onClick={() => setShowSettingsSection(!showSettingsSection)}
+                className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                  showSettingsSection
+                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                    : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+                title={showSettingsSection ? "Hide Settings" : "Show Settings"}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
 
-                <div className="h-4 w-px bg-white/10 mx-0.5 hidden sm:block" />
-
-                {/* Sidebar toggle button */}
-                <button
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
-                    !sidebarCollapsed
-                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
-                      : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
-                  }`}
-                  title={!sidebarCollapsed ? "Hide Sidebar" : "Show Sidebar"}
-                >
-                  <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Settings toggle button */}
-                <button
-                  onClick={() => setShowSettingsSection(!showSettingsSection)}
-                  className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
-                    showSettingsSection
-                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
-                      : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
-                  }`}
-                  title={showSettingsSection ? "Hide Settings" : "Show Settings"}
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-
-                {/* Subtitles toggle button */}
-                <button
-                  onClick={() => setShowSubtitlesSection(!showSubtitlesSection)}
-                  className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
-                    showSubtitlesSection
-                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
-                      : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
-                  }`}
-                  title={showSubtitlesSection ? "Hide Subtitles" : "Show Subtitles"}
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              </div>
+              {/* Subtitles toggle button */}
+              <button
+                onClick={() => setShowSubtitlesSection(!showSubtitlesSection)}
+                className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                  showSubtitlesSection
+                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                    : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+                title={showSubtitlesSection ? "Hide Subtitles" : "Show Subtitles"}
+              >
+                <FileText className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
@@ -786,10 +778,10 @@ export default function App() {
             onDragOver={handlePlayerDragOver}
             onDragLeave={handlePlayerDragLeave}
             onDrop={handlePlayerDrop}
-            className={`relative flex-1 bg-black/40 backdrop-blur-xl rounded-2xl md:rounded-3xl overflow-hidden border flex flex-col justify-between shadow-2xl transition-all duration-300 ${
+            className={`relative flex-1 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 depth-card ${
               playerDragging 
                 ? 'border-indigo-400 ring-4 ring-indigo-500/20' 
-                : 'border-white/10 hover:border-white/15'
+                : ''
             }`}
             style={{ minHeight: '380px' }}
           >
@@ -912,44 +904,89 @@ export default function App() {
               </div>
 
               {/* Control Buttons row */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="w-full grid grid-cols-1 lg:grid-cols-3 items-center gap-4 relative">
                 
-                {/* 1. Volume controls (0% to 200%) - now on the left */}
-                <div className="flex items-center gap-2.5 bg-white/[0.03] border border-white/10 px-4 py-2 rounded-2xl shadow-inner w-full md:w-auto justify-between md:justify-start">
-                  <div className="flex items-center gap-2.5">
+                {/* 1. Volume controls & Quick Stats - now on the left */}
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-start lg:justify-self-start">
+                  {/* Volume Slider Block */}
+                  <div className="flex items-center gap-2.5 bg-white/[0.03] border border-white/10 px-4 py-2 rounded-2xl shadow-inner shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={toggleMute}
+                        className="text-zinc-300 hover:text-white transition-colors shrink-0"
+                        title="Mute"
+                      >
+                        {isMuted || volume === 0 ? (
+                          <VolumeX className="w-4 h-4" />
+                        ) : volume > 1.2 ? (
+                          <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
+                        ) : volume > 0.5 ? (
+                          <Volume2 className="w-4 h-4" />
+                        ) : (
+                          <Volume1 className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-16 sm:w-24 h-1.5 rounded-full appearance-none cursor-pointer"
+                      />
+                    </div>
+                    <span className={`text-[10px] font-mono font-bold tracking-tight w-8 text-right shrink-0 ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
+                      {Math.round(volume * 100)}%
+                    </span>
+                  </div>
+
+                  {/* Playback Stats Badges */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Speed Badge Button */}
                     <button
-                      onClick={toggleMute}
-                      className="text-zinc-300 hover:text-white transition-colors shrink-0"
-                      title="Mute"
+                      onClick={cycleSpeed}
+                      type="button"
+                      className="group flex items-center gap-0 hover:gap-1.5 bg-white/[0.05] border border-white/12 p-2 hover:px-2.5 rounded-xl text-zinc-300 transition-all duration-300 cursor-pointer shadow-lg shadow-black/30 depth-button"
+                      title="Click to cycle playback speed"
                     >
-                      {isMuted || volume === 0 ? (
-                        <VolumeX className="w-4 h-4" />
-                      ) : volume > 1.2 ? (
-                        <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
-                      ) : volume > 0.5 ? (
-                        <Volume2 className="w-4 h-4" />
-                      ) : (
-                        <Volume1 className="w-4 h-4" />
-                      )}
+                      <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <span className="w-0 overflow-hidden group-hover:w-10 text-[10px] font-bold font-mono leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                        {settings.speed.toFixed(2)}x
+                      </span>
                     </button>
 
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.05"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-20 md:w-28 h-1.5 rounded-full appearance-none cursor-pointer"
-                    />
+                    {/* Aspect Ratio Badge Button */}
+                    <button
+                      onClick={cycleAspectRatio}
+                      type="button"
+                      className="group flex items-center gap-0 hover:gap-1.5 bg-white/[0.05] border border-white/12 p-2 hover:px-2.5 rounded-xl text-zinc-300 transition-all duration-300 cursor-pointer shadow-lg shadow-black/30 depth-button"
+                      title="Click to cycle aspect ratio"
+                    >
+                      <Maximize className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <span className="w-0 overflow-hidden group-hover:w-12 text-[10px] font-bold capitalize leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                        {settings.aspectRatio}
+                      </span>
+                    </button>
+
+                    {/* Subtitle Loaded Badge Button */}
+                    <button
+                      onClick={handleSubtitleUploadClick}
+                      type="button"
+                      className="group flex items-center gap-0 hover:gap-1.5 bg-white/[0.05] border border-white/12 p-2 hover:px-2.5 rounded-xl text-zinc-300 transition-all duration-300 cursor-pointer shadow-lg shadow-black/30 max-w-[150px] depth-button"
+                      title="Click to load subtitles file"
+                    >
+                      <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <span className="w-0 overflow-hidden group-hover:max-w-[100px] text-[10px] font-bold truncate leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                        {subtitleTrackName}
+                      </span>
+                    </button>
                   </div>
-                  <span className={`text-[10px] font-mono font-bold tracking-tight w-8 text-right shrink-0 ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
-                    {Math.round(volume * 100)}%
-                  </span>
                 </div>
 
-                {/* 2. Main Transport Controls - now in the center */}
-                <div className="flex items-center gap-2 justify-center w-full md:w-auto">
+                {/* 2. Main Transport Controls - now at the absolute center always */}
+                <div className="flex items-center gap-2 justify-center w-full lg:justify-self-center lg:mx-auto">
                   <button
                     onClick={playPreviousTrack}
                     className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
@@ -1000,7 +1037,7 @@ export default function App() {
                 </div>
 
                 {/* 3. Utility Actions - now on the right */}
-                <div className="flex items-center gap-1.5 w-full md:w-auto justify-center md:justify-end">
+                <div className="flex items-center gap-1.5 w-full justify-center lg:justify-end lg:justify-self-end">
                   <button
                     onClick={takeScreenshot}
                     className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
@@ -1037,9 +1074,9 @@ export default function App() {
 
           {/* Subtitles & Aspect Settings Bar */}
           {(showSettingsSection || showSubtitlesSection) && (
-            <div className={`glass-thick grid grid-cols-1 ${
+            <div className={`glass-thick depth-card grid grid-cols-1 ${
               showSettingsSection && showSubtitlesSection ? 'md:grid-cols-2' : ''
-            } gap-6 p-5.5 rounded-2xl md:rounded-3xl border border-white/10 shadow-2xl`}>
+            } gap-6 p-5.5 rounded-2xl md:rounded-3xl`}>
               {/* Playback speed, loops, ratio options */}
               {showSettingsSection && (
                 <div className="space-y-4">
@@ -1057,7 +1094,7 @@ export default function App() {
                       <select
                         value={settings.speed}
                         onChange={(e) => setSettings((p) => ({ ...p, speed: parseFloat(e.target.value) }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="0.25">0.25x (Slow)</option>
                         <option value="0.5">0.50x</option>
@@ -1078,7 +1115,7 @@ export default function App() {
                       <select
                         value={settings.aspectRatio}
                         onChange={(e) => setSettings((p) => ({ ...p, aspectRatio: e.target.value as AspectRatioType }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="fit">Fit Container</option>
                         <option value="fill">Fill Canvas</option>
@@ -1096,10 +1133,10 @@ export default function App() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => setSettings((p) => ({ ...p, loop: p.loop === 'one' ? 'none' : 'one' }))}
-                          className={`flex-1 py-1.5 px-2 border rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 ${
+                          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 depth-button ${
                             settings.loop === 'one'
-                              ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300 shadow-md shadow-indigo-500/10'
-                              : 'bg-zinc-900/60 border-white/10 hover:bg-white/[0.05] text-zinc-300'
+                              ? 'bg-indigo-600/30 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/20'
+                              : 'text-zinc-300'
                           }`}
                           title="Repeat Current File"
                         >
@@ -1108,10 +1145,10 @@ export default function App() {
                         </button>
                         <button
                           onClick={() => setSettings((p) => ({ ...p, shuffle: !p.shuffle }))}
-                          className={`flex-1 py-1.5 px-2 border rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 ${
+                          className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 depth-button ${
                             settings.shuffle
-                              ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300 shadow-md shadow-indigo-500/10'
-                              : 'bg-zinc-900/60 border-white/10 hover:bg-white/[0.05] text-zinc-300'
+                              ? 'bg-indigo-600/30 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/20'
+                              : 'text-zinc-300'
                           }`}
                           title="Mix playlist randomly"
                         >
@@ -1128,7 +1165,7 @@ export default function App() {
                       </span>
                       <button
                         onClick={() => setVideoFilters(DEFAULT_FILTERS)}
-                        className="w-full bg-zinc-900/60 hover:bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 font-bold"
+                        className="w-full rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all flex items-center justify-center gap-1.5 font-bold depth-button"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
                         <span>Reset Filters</span>
@@ -1155,7 +1192,7 @@ export default function App() {
                       <select
                         value={settings.subtitleColor}
                         onChange={(e) => setSettings((p) => ({ ...p, subtitleColor: e.target.value }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="#fde047">Yellow</option>
                         <option value="#ffffff">White</option>
@@ -1172,7 +1209,7 @@ export default function App() {
                       <select
                         value={settings.subtitleSize}
                         onChange={(e) => setSettings((p) => ({ ...p, subtitleSize: e.target.value as any }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="small">Small</option>
                         <option value="medium">Medium</option>
@@ -1192,7 +1229,7 @@ export default function App() {
                         placeholder="0.0s"
                         value={settings.subtitleDelay}
                         onChange={(e) => setSettings((p) => ({ ...p, subtitleDelay: parseFloat(e.target.value) || 0 }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-mono transition-all hover:bg-white/[0.04]"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-mono transition-all hover:bg-white/[0.04] depth-input"
                       />
                     </div>
 
@@ -1203,7 +1240,7 @@ export default function App() {
                       </span>
                       <button
                         onClick={handleSubtitleUploadClick}
-                        className="w-full bg-zinc-900/60 hover:bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 truncate font-bold"
+                        className="w-full rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all flex items-center justify-center gap-1.5 truncate font-bold depth-button"
                       >
                         <FolderOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                         <span className="truncate">Open .srt / .vtt</span>
@@ -1226,7 +1263,7 @@ export default function App() {
 
         {/* Right Side: Tabbed Config Utilities (4 Cols) */}
         {!sidebarCollapsed && (
-          <div className="lg:col-span-4 glass-thick rounded-2xl md:rounded-3xl overflow-hidden flex flex-col h-full shadow-2xl">
+          <div className="lg:col-span-4 glass-thick depth-card rounded-2xl md:rounded-3xl overflow-hidden flex flex-col h-full shadow-2xl">
             {/* Tab Selection Header */}
             <div className="p-2.5 bg-black/30 border-b border-white/10 flex gap-1.5 select-none overflow-x-auto shrink-0 custom-scrollbar items-center">
               <button
