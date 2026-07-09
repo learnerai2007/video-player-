@@ -1,6 +1,6 @@
 {
   "name": "Media Player",
-  "description": "A feature-rich modern media player with custom video adjustments, audio equalizer, subtitles, and local file support.",
+  "description": "A simple media player for video and audio files with custom adjustments, equalizer, and local file support.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

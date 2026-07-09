@@ -28,7 +28,9 @@ import {
   Tv,
   Keyboard,
   Info,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 import {
@@ -48,77 +50,11 @@ import BookmarksComponent from './components/BookmarksComponent';
 import AudioVisualizerComponent from './components/AudioVisualizerComponent';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
 
-// 1. Initial Sample Tracks (Public stable streams with CORS support)
-const INITIAL_PLAYLIST: PlaylistItem[] = [
-  {
-    id: 'sample-video-1',
-    name: 'Big Buck Bunny (Sintel Creator Studio)',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    type: 'video',
-    size: '10.5 MB',
-    isSample: true,
-  },
-  {
-    id: 'sample-video-2',
-    name: 'Sintel - Cinematic Open Movie',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    type: 'video',
-    size: '15.2 MB',
-    isSample: true,
-  },
-  {
-    id: 'sample-video-3',
-    name: 'Tears of Steel (Sci-Fi VFX)',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    type: 'video',
-    size: '24.1 MB',
-    isSample: true,
-  },
-  {
-    id: 'sample-video-4',
-    name: 'Elephant\'s Dream (Retro CGI)',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    type: 'video',
-    size: '12.8 MB',
-    isSample: true,
-  },
-  {
-    id: 'sample-audio-1',
-    name: 'Vibrant Electro Waves (Acoustic)',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    type: 'audio',
-    size: '6.2 MB',
-    isSample: true,
-  },
-  {
-    id: 'sample-audio-2',
-    name: 'Lo-Fi Chill Hop Beats',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    type: 'audio',
-    size: '5.8 MB',
-    isSample: true,
-  }
-];
+// 1. Initial Sample Tracks
+const INITIAL_PLAYLIST: PlaylistItem[] = [];
 
-// 2. Mock subtitles matching sample-video-1 and sample-video-2
-const SAMPLE_SUBTITLES: { [trackId: string]: { start: number; end: number; text: string }[] } = {
-  'sample-video-1': [
-    { start: 1, end: 4, text: "Welcome to Big Buck Bunny!" },
-    { start: 5, end: 9, text: "This is a popular open-source film used for media testing." },
-    { start: 10, end: 14, text: "You can adjust subtitle delays, colors, and sizes below!" },
-    { start: 15, end: 19, text: "Try dragging and dropping your own local media files." },
-    { start: 20, end: 24, text: "Use the Web Audio Equalizer to boost frequencies." },
-    { start: 25, end: 29, text: "Adjust Brightness, Blur, or Sepia in real-time." },
-    { start: 30, end: 35, text: "Enjoy this feature-packed, VLC-style media player!" }
-  ],
-  'sample-video-2': [
-    { start: 1, end: 4, text: "Sintel - Open movie project by Blender Foundation." },
-    { start: 5, end: 8, text: "Demonstrating clean audio and cinematic gradients." },
-    { start: 9, end: 13, text: "Tag moments in the 'Bookmarks' panel to jump to them later." },
-    { start: 14, end: 18, text: "Click the Camera icon to capture a frame snapshot!" },
-    { start: 19, end: 24, text: "Use standard hotkeys like 'Space', '[', ']', and 'Arrows'!" }
-  ]
-};
+// 2. Mock subtitles
+const SAMPLE_SUBTITLES: { [trackId: string]: { start: number; end: number; text: string }[] } = {};
 
 const DEFAULT_FILTERS: VideoFilters = {
   brightness: 100,
@@ -146,7 +82,7 @@ export default function App() {
 
   // --- States ---
   const [playlist, setPlaylist] = useState<PlaylistItem[]>(INITIAL_PLAYLIST);
-  const [currentTrackId, setCurrentTrackId] = useState<string>('sample-video-1');
+  const [currentTrackId, setCurrentTrackId] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -173,7 +109,7 @@ export default function App() {
 
   // Subtitles
   const [currentSubtitles, setCurrentSubtitles] = useState<{ start: number; end: number; text: string }[]>([]);
-  const [subtitleTrackName, setSubtitleTrackName] = useState<string>('Default Built-in');
+  const [subtitleTrackName, setSubtitleTrackName] = useState<string>('No subtitles loaded');
 
   // Playback settings
   const [settings, setSettings] = useState<PlaybackSettings>({
@@ -191,6 +127,9 @@ export default function App() {
   const [lastVolume, setLastVolume] = useState(0.8);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
+  const [showSettingsSection, setShowSettingsSection] = useState(true);
+  const [showSubtitlesSection, setShowSubtitlesSection] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const currentTrack = playlist.find((t) => t.id === currentTrackId) || playlist[0];
 
@@ -737,49 +676,120 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-white">
-      {/* 1. Header Toolbar */}
-      <header className="px-4 py-2.5 bg-[#09090b] border-b border-white/10 flex items-center justify-between shrink-0 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          {/* Logo */}
-          <div className="bg-indigo-600 p-1.5 rounded-md text-white shadow-sm">
-            <Tv className="w-4 h-4" />
-          </div>
-          <div>
-            <h1 className="text-xs font-semibold tracking-tight text-zinc-100">
-              Video Player
-            </h1>
-            <p className="text-[10px] text-zinc-400">Play video and audio files.</p>
-          </div>
-        </div>
+    <div className="relative min-h-screen bg-[#060608] text-zinc-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-white overflow-hidden">
+      {/* Dynamic Ambient Fluid Backdrops */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none opacity-50">
+        <div className="bg-gradient-to-tr from-indigo-600/25 to-violet-600/25 blur-[130px] rounded-full w-[45vw] h-[45vw] absolute -top-[10%] -left-[10%] fluid-bg-1" />
+        <div className="bg-gradient-to-tr from-fuchsia-600/15 to-pink-600/15 blur-[140px] rounded-full w-[50vw] h-[50vw] absolute top-[30%] -right-[15%] fluid-bg-2" />
+        <div className="bg-gradient-to-tr from-cyan-600/25 to-emerald-600/15 blur-[120px] rounded-full w-[40vw] h-[40vw] absolute -bottom-[10%] left-[15%] fluid-bg-3" />
+      </div>
 
-        {/* Header Actions */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setShowShortcutsHelp(true)}
-            className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-[11px] text-zinc-300 hover:text-white transition-all font-medium border border-white/5"
-            title="Shortcuts Guide"
-          >
-            <Keyboard className="w-3.5 h-3.5" />
-            <span>Shortcuts</span>
-          </button>
-        </div>
-      </header>
-
-      {/* 2. Main Content Grid */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[calc(100vh-53px)]">
+      {/* 1. Main Content Grid */}
+      <main className="relative z-10 flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-screen p-4 lg:p-5 gap-4 lg:gap-5">
         
-        {/* Left Side: Video Canvas Container (8 Cols) */}
-        <div className="lg:col-span-8 flex flex-col bg-[#09090b] overflow-y-auto p-3 space-y-3 custom-scrollbar">
+        {/* Left Side: Video Canvas Container */}
+        <div className={`${sidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col overflow-y-auto p-1.5 space-y-4 custom-scrollbar`}>
           
+          {/* Top Bar: Now Playing, Stats & Toggles */}
+          <div className="glass-thick p-3 md:p-3.5 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row gap-3.5 items-center justify-between shadow-2xl border border-white/10 hover:border-white/15 transition-all duration-300">
+            {/* Now Playing info */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto min-w-0">
+              <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20 shrink-0">
+                <PlayCircle className={`w-4 h-4 ${isPlaying ? 'animate-pulse' : ''}`} />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider block">Now Playing</span>
+                <p className="text-xs font-bold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md">{currentTrack ? currentTrack.name : 'No file loaded'}</p>
+              </div>
+            </div>
+
+            {/* Quick stats with simple symbol icons */}
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
+              <div className="flex items-center gap-3 text-xs font-medium text-zinc-300">
+                {/* Speed Info */}
+                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1.5 rounded-xl" title="Playback speed">
+                  <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="text-[10px] font-bold text-zinc-300 font-mono">{settings.speed.toFixed(2)}x</span>
+                </div>
+
+                {/* Aspect Info */}
+                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1.5 rounded-xl" title="Aspect ratio">
+                  <Maximize className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="text-[10px] font-bold text-zinc-300 capitalize">{settings.aspectRatio}</span>
+                </div>
+
+                {/* Subtitles Info */}
+                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 px-2.5 py-1.5 rounded-xl max-w-[150px]" title="Subtitles loaded">
+                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="text-[10px] font-bold text-zinc-300 truncate">{subtitleTrackName}</span>
+                </div>
+              </div>
+
+              {/* Toggles bar */}
+              <div className="flex items-center gap-1.5 border-t sm:border-t-0 sm:border-l border-white/10 pt-2.5 sm:pt-0 pl-0 sm:pl-3 w-full sm:w-auto justify-end">
+                {/* Keyboard Shortcuts button */}
+                <button
+                  onClick={() => setShowShortcutsHelp(true)}
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all"
+                  title="Keyboard Shortcuts"
+                >
+                  <Keyboard className="w-4 h-4" />
+                </button>
+
+                <div className="h-4 w-px bg-white/10 mx-0.5 hidden sm:block" />
+
+                {/* Sidebar toggle button */}
+                <button
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                    !sidebarCollapsed
+                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                      : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                  }`}
+                  title={!sidebarCollapsed ? "Hide Sidebar" : "Show Sidebar"}
+                >
+                  <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Settings toggle button */}
+                <button
+                  onClick={() => setShowSettingsSection(!showSettingsSection)}
+                  className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                    showSettingsSection
+                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                      : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                  }`}
+                  title={showSettingsSection ? "Hide Settings" : "Show Settings"}
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+
+                {/* Subtitles toggle button */}
+                <button
+                  onClick={() => setShowSubtitlesSection(!showSubtitlesSection)}
+                  className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
+                    showSubtitlesSection
+                      ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                      : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                  }`}
+                  title={showSubtitlesSection ? "Hide Subtitles" : "Show Subtitles"}
+                >
+                  <FileText className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Video Stage Frame */}
           <div
             ref={containerRef}
             onDragOver={handlePlayerDragOver}
             onDragLeave={handlePlayerDragLeave}
             onDrop={handlePlayerDrop}
-            className={`relative flex-1 bg-black rounded-lg overflow-hidden border flex flex-col justify-between shadow-xl transition-all ${
-              playerDragging ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-white/10'
+            className={`relative flex-1 bg-black/40 backdrop-blur-xl rounded-2xl md:rounded-3xl overflow-hidden border flex flex-col justify-between shadow-2xl transition-all duration-300 ${
+              playerDragging 
+                ? 'border-indigo-400 ring-4 ring-indigo-500/20' 
+                : 'border-white/10 hover:border-white/15'
             }`}
             style={{ minHeight: '380px' }}
           >
@@ -794,33 +804,12 @@ export default function App() {
 
             {/* Video or Audio Visualizer Stage */}
             <div className="relative flex-1 flex items-center justify-center bg-zinc-950 overflow-hidden">
-              {currentTrack.type === 'video' ? (
-                <video
-                  ref={videoRef}
-                  src={currentTrack.url}
-                  onClick={togglePlay}
-                  onTimeUpdate={() => {
-                    if (videoRef.current) {
-                      setCurrentTime(videoRef.current.currentTime);
-                    }
-                  }}
-                  onDurationChange={() => {
-                    if (videoRef.current) {
-                      setDuration(videoRef.current.duration);
-                    }
-                  }}
-                  onEnded={handleEnded}
-                  className={`${getAspectRatioClasses()} transition-all`}
-                  style={{ filter: getFilterStyleString() }}
-                  crossOrigin="anonymous"
-                  playsInline
-                />
-              ) : (
-                <div className="w-full h-full min-h-[280px]">
-                  {/* Standard Video element for handling Audio stream behind the scenes */}
+              {currentTrack ? (
+                currentTrack.type === 'video' ? (
                   <video
                     ref={videoRef}
                     src={currentTrack.url}
+                    onClick={togglePlay}
                     onTimeUpdate={() => {
                       if (videoRef.current) {
                         setCurrentTime(videoRef.current.currentTime);
@@ -832,24 +821,56 @@ export default function App() {
                       }
                     }}
                     onEnded={handleEnded}
-                    className="hidden"
+                    className={`${getAspectRatioClasses()} transition-all`}
+                    style={{ filter: getFilterStyleString() }}
                     crossOrigin="anonymous"
+                    playsInline
                   />
-                  {/* Interactive audio visualizer */}
-                  <AudioVisualizerComponent
-                    analyser={analyserActive}
-                    isPlaying={isPlaying}
-                    isAudioOnly={true}
-                  />
+                ) : (
+                  <div className="w-full h-full min-h-[280px]">
+                    {/* Standard Video element for handling Audio stream behind the scenes */}
+                    <video
+                      ref={videoRef}
+                      src={currentTrack.url}
+                      onTimeUpdate={() => {
+                        if (videoRef.current) {
+                          setCurrentTime(videoRef.current.currentTime);
+                        }
+                      }}
+                      onDurationChange={() => {
+                        if (videoRef.current) {
+                          setDuration(videoRef.current.duration);
+                        }
+                      }}
+                      onEnded={handleEnded}
+                      className="hidden"
+                      crossOrigin="anonymous"
+                    />
+                    {/* Interactive audio visualizer */}
+                    <AudioVisualizerComponent
+                      analyser={analyserActive}
+                      isPlaying={isPlaying}
+                      isAudioOnly={true}
+                    />
+                  </div>
+                )
+              ) : (
+                <div className="flex flex-col items-center justify-center p-8 text-center text-zinc-400 space-y-3 max-w-xs mx-auto">
+                  <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 border border-indigo-500/20">
+                    <Tv className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">No media loaded</h3>
+                  <p className="text-[10px] text-zinc-400 leading-normal">
+                    Drag and drop your own video or audio files here, enter a link, or open the playlist to choose a file.
+                  </p>
                 </div>
               )}
 
               {/* Subtitles Overlay */}
               {activeSubtitleText && (
                 <div
-                  className="absolute bottom-12 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded text-center font-medium max-w-[85%] pointer-events-none z-20 select-none shadow-md backdrop-blur-sm transition-all"
+                  className="absolute bottom-12 left-1/2 -translate-x-1/2 px-5 py-2 rounded-2xl text-center font-medium max-w-[85%] pointer-events-none z-20 select-none shadow-xl bg-black/60 backdrop-blur-md border border-white/10 transition-all"
                   style={{
-                    backgroundColor: settings.subtitleBg,
                     color: settings.subtitleColor,
                     fontSize:
                       settings.subtitleSize === 'small'
@@ -867,11 +888,11 @@ export default function App() {
             </div>
 
             {/* Customized Media Player Control Bar */}
-            <div className="bg-zinc-950/95 p-3 flex flex-col gap-2.5 z-20 border-t border-white/10">
+            <div className="bg-black/30 backdrop-blur-2xl p-5 flex flex-col gap-4 z-20 border-t border-white/10">
               
               {/* Timeline Slider with progress labels */}
-              <div className="flex items-center gap-2.5">
-                <span className="text-[10px] font-mono font-semibold text-zinc-400 w-10 text-right">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-mono font-medium text-zinc-300 w-10 text-right">
                   {formatTime(currentTime)}
                 </span>
                 
@@ -882,442 +903,466 @@ export default function App() {
                   step="0.1"
                   value={currentTime}
                   onChange={handleTimelineChange}
-                  className="flex-1 h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
+                  className="flex-1 h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer"
                 />
 
-                <span className="text-[10px] font-mono font-semibold text-zinc-400 w-10 text-left">
+                <span className="text-[10px] font-mono font-medium text-zinc-300 w-10 text-left">
                   {formatTime(duration)}
                 </span>
               </div>
 
               {/* Control Buttons row */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 
-                {/* 1. Main Transport Controls */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={playPreviousTrack}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-                    title="Previous"
-                  >
-                    <SkipBack className="w-3.5 h-3.5 fill-current" />
-                  </button>
+                {/* 1. Volume controls (0% to 200%) - now on the left */}
+                <div className="flex items-center gap-2.5 bg-white/[0.03] border border-white/10 px-4 py-2 rounded-2xl shadow-inner w-full md:w-auto justify-between md:justify-start">
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={toggleMute}
+                      className="text-zinc-300 hover:text-white transition-colors shrink-0"
+                      title="Mute"
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="w-4 h-4" />
+                      ) : volume > 1.2 ? (
+                        <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
+                      ) : volume > 0.5 ? (
+                        <Volume2 className="w-4 h-4" />
+                      ) : (
+                        <Volume1 className="w-4 h-4" />
+                      )}
+                    </button>
 
-                  <button
-                    onClick={() => seek(-5)}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-all"
-                    title="Back 5s"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-
-                  <button
-                    onClick={togglePlay}
-                    className="p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow hover:scale-105 active:scale-95 transition-all"
-                    title={isPlaying ? 'Pause' : 'Play'}
-                  >
-                    {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                  </button>
-
-                  <button
-                    onClick={() => seek(5)}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-all"
-                    title="Forward 5s"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-
-                  <button
-                    onClick={playNextTrack}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-                    title="Next"
-                  >
-                    <SkipForward className="w-3.5 h-3.5 fill-current" />
-                  </button>
-
-                  <button
-                    onClick={handleStop}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
-                    title="Stop"
-                  >
-                    <Square className="w-3 h-3 fill-current" />
-                  </button>
-                </div>
-
-                {/* 2. Volume controls (0% to 200%) */}
-                <div className="flex items-center gap-2 bg-zinc-900 border border-white/5 px-2 py-1 rounded">
-                  <button
-                    onClick={toggleMute}
-                    className="text-zinc-400 hover:text-white transition-colors"
-                    title="Mute"
-                  >
-                    {isMuted || volume === 0 ? (
-                      <VolumeX className="w-3.5 h-3.5" />
-                    ) : volume > 1.2 ? (
-                      <Volume2 className="w-3.5 h-3.5 text-rose-400" />
-                    ) : volume > 0.5 ? (
-                      <Volume2 className="w-3.5 h-3.5" />
-                    ) : (
-                      <Volume1 className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.05"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    className={`w-16 sm:w-20 h-1 rounded appearance-none cursor-pointer bg-zinc-800 ${
-                      volume > 1.0 ? 'accent-rose-500' : 'accent-indigo-500'
-                    }`}
-                  />
-                  <span className={`text-[9px] font-mono font-bold tracking-tight w-7 text-right ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.05"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="w-20 md:w-28 h-1.5 rounded-full appearance-none cursor-pointer"
+                    />
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold tracking-tight w-8 text-right shrink-0 ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
                     {Math.round(volume * 100)}%
                   </span>
                 </div>
 
-                {/* 3. Utility Actions */}
-                <div className="flex items-center gap-1">
+                {/* 2. Main Transport Controls - now in the center */}
+                <div className="flex items-center gap-2 justify-center w-full md:w-auto">
+                  <button
+                    onClick={playPreviousTrack}
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
+                    title="Previous"
+                  >
+                    <SkipBack className="w-4 h-4 fill-current" />
+                  </button>
+
+                  <button
+                    onClick={() => seek(-5)}
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
+                    title="Back 5s"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={togglePlay}
+                    className="p-3.5 glass-primary rounded-2xl hover:scale-110 active:scale-95 transition-all duration-200"
+                    title={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => seek(5)}
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
+                    title="Forward 5s"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={playNextTrack}
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
+                    title="Next"
+                  >
+                    <SkipForward className="w-4 h-4 fill-current" />
+                  </button>
+
+                  <button
+                    onClick={handleStop}
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
+                    title="Stop"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </button>
+                </div>
+
+                {/* 3. Utility Actions - now on the right */}
+                <div className="flex items-center gap-1.5 w-full md:w-auto justify-center md:justify-end">
                   <button
                     onClick={takeScreenshot}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
                     title="Screenshot"
                   >
-                    <Camera className="w-3.5 h-3.5" />
+                    <Camera className="w-4 h-4" />
                   </button>
 
                   {document.pictureInPictureEnabled && (
                     <button
                       onClick={togglePiP}
-                      className={`p-1.5 rounded transition-colors ${
-                        isPiPActive ? 'bg-indigo-600/20 text-indigo-400' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                      className={`p-2 rounded-xl transition-all duration-250 hover:scale-110 active:scale-95 ${
+                        isPiPActive ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
                       }`}
                       title="PiP"
                     >
-                      <Tv className="w-3.5 h-3.5" />
+                      <Tv className="w-4 h-4" />
                     </button>
                   )}
 
                   <button
                     onClick={toggleFullscreen}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                    className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
                     title="Fullscreen"
                   >
-                    {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+                    {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                   </button>
                 </div>
 
               </div>
             </div>
 
-          </div>
-
-          {/* Player Metadata Stats Box */}
-          <div className="p-2.5 bg-[#121214]/60 border border-white/10 rounded-lg flex flex-wrap gap-3 items-center justify-between shadow">
-            <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-indigo-400" />
-              <div className="min-w-0">
-                <span className="text-[9px] font-semibold text-zinc-500">Now Playing</span>
-                <p className="text-xs font-medium text-zinc-200 truncate">{currentTrack.name}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 text-right">
-              <div>
-                <span className="text-[9px] text-zinc-500 block">Speed</span>
-                <span className="text-xs font-mono text-indigo-400">{settings.speed.toFixed(2)}x</span>
-              </div>
-              <div>
-                <span className="text-[9px] text-zinc-500 block">Aspect</span>
-                <span className="text-xs font-mono text-zinc-300 capitalize">{settings.aspectRatio}</span>
-              </div>
-              <div>
-                <span className="text-[9px] text-zinc-500 block">Subtitles</span>
-                <span className="text-xs font-mono text-zinc-300 truncate max-w-[100px] block text-right">{subtitleTrackName}</span>
-              </div>
-            </div>
           </div>
 
           {/* Subtitles & Aspect Settings Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#121214]/40 p-3 rounded-lg border border-white/10">
-            {/* Playback speed, loops, ratio options */}
-            <div className="space-y-2.5">
-              <h3 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                <Settings className="w-3.5 h-3.5" />
-                <span>Settings</span>
-              </h3>
+          {(showSettingsSection || showSubtitlesSection) && (
+            <div className={`glass-thick grid grid-cols-1 ${
+              showSettingsSection && showSubtitlesSection ? 'md:grid-cols-2' : ''
+            } gap-6 p-5.5 rounded-2xl md:rounded-3xl border border-white/10 shadow-2xl`}>
+              {/* Playback speed, loops, ratio options */}
+              {showSettingsSection && (
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider font-display">
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Playback Settings</span>
+                  </h3>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Speed</span>
-                  <select
-                    value={settings.speed}
-                    onChange={(e) => setSettings((p) => ({ ...p, speed: parseFloat(e.target.value) }))}
-                    className="w-full bg-zinc-950 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="0.25">0.25x</option>
-                    <option value="0.5">0.50x</option>
-                    <option value="0.75">0.75x</option>
-                    <option value="1">1.00x</option>
-                    <option value="1.25">1.25x</option>
-                    <option value="1.5">1.50x</option>
-                    <option value="2">2.00x</option>
-                    <option value="4">4.00x</option>
-                  </select>
-                </div>
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Playback Speed</span>
+                      </span>
+                      <select
+                        value={settings.speed}
+                        onChange={(e) => setSettings((p) => ({ ...p, speed: parseFloat(e.target.value) }))}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                      >
+                        <option value="0.25">0.25x (Slow)</option>
+                        <option value="0.5">0.50x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1">1.00x (Normal)</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.50x</option>
+                        <option value="2">2.00x</option>
+                        <option value="4">4.00x (Fast)</option>
+                      </select>
+                    </div>
 
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Aspect Ratio</span>
-                  <select
-                    value={settings.aspectRatio}
-                    onChange={(e) => setSettings((p) => ({ ...p, aspectRatio: e.target.value as AspectRatioType }))}
-                    className="w-full bg-zinc-950 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="fit">Fit Container</option>
-                    <option value="fill">Fill Canvas</option>
-                    <option value="stretch">Stretch</option>
-                    <option value="16:9">Lock 16:9</option>
-                    <option value="4:3">Lock 4:3</option>
-                  </select>
-                </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <Maximize className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Aspect Ratio</span>
+                      </span>
+                      <select
+                        value={settings.aspectRatio}
+                        onChange={(e) => setSettings((p) => ({ ...p, aspectRatio: e.target.value as AspectRatioType }))}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                      >
+                        <option value="fit">Fit Container</option>
+                        <option value="fill">Fill Canvas</option>
+                        <option value="stretch">Stretch</option>
+                        <option value="16:9">Lock 16:9</option>
+                        <option value="4:3">Lock 4:3</option>
+                      </select>
+                    </div>
 
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Loop</span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setSettings((p) => ({ ...p, loop: p.loop === 'one' ? 'none' : 'one' }))}
-                      className={`flex-1 py-1 px-1.5 border rounded text-[11px] transition-colors ${
-                        settings.loop === 'one'
-                          ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400'
-                          : 'bg-zinc-950 border-white/10 hover:bg-zinc-800 text-zinc-400'
-                      }`}
-                      title="Loop Track"
-                    >
-                      <RefreshCw className="w-3 h-3 mx-auto" />
-                    </button>
-                    <button
-                      onClick={() => setSettings((p) => ({ ...p, shuffle: !p.shuffle }))}
-                      className={`flex-1 py-1 px-1.5 border rounded text-[11px] transition-colors ${
-                        settings.shuffle
-                          ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400'
-                          : 'bg-zinc-950 border-white/10 hover:bg-zinc-800 text-zinc-400'
-                      }`}
-                      title="Shuffle"
-                    >
-                      <Shuffle className="w-3 h-3 mx-auto" />
-                    </button>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <RefreshCw className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Repeat & Mix</span>
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSettings((p) => ({ ...p, loop: p.loop === 'one' ? 'none' : 'one' }))}
+                          className={`flex-1 py-1.5 px-2 border rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 ${
+                            settings.loop === 'one'
+                              ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300 shadow-md shadow-indigo-500/10'
+                              : 'bg-zinc-900/60 border-white/10 hover:bg-white/[0.05] text-zinc-300'
+                          }`}
+                          title="Repeat Current File"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                          <span>Repeat</span>
+                        </button>
+                        <button
+                          onClick={() => setSettings((p) => ({ ...p, shuffle: !p.shuffle }))}
+                          className={`flex-1 py-1.5 px-2 border rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 ${
+                            settings.shuffle
+                              ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300 shadow-md shadow-indigo-500/10'
+                              : 'bg-zinc-900/60 border-white/10 hover:bg-white/[0.05] text-zinc-300'
+                          }`}
+                          title="Mix playlist randomly"
+                        >
+                          <Shuffle className="w-3.5 h-3.5 shrink-0" />
+                          <span>Mix</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Filter Adjustments</span>
+                      </span>
+                      <button
+                        onClick={() => setVideoFilters(DEFAULT_FILTERS)}
+                        className="w-full bg-zinc-900/60 hover:bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 font-bold"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Reset Filters</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Clear</span>
-                  <button
-                    onClick={() => setVideoFilters(DEFAULT_FILTERS)}
-                    className="w-full bg-zinc-950 hover:bg-zinc-800 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-300 transition-colors flex items-center justify-center gap-1"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+              {/* Subtitle custom tracks uploader and delay config */}
+              {showSubtitlesSection && (
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider font-display">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Subtitle Customizer</span>
+                  </h3>
 
-            {/* Subtitle custom tracks uploader and delay config */}
-            <div className="space-y-2.5">
-              <h3 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Subtitles</span>
-              </h3>
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
+                        <span>Subtitle Color</span>
+                      </span>
+                      <select
+                        value={settings.subtitleColor}
+                        onChange={(e) => setSettings((p) => ({ ...p, subtitleColor: e.target.value }))}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                      >
+                        <option value="#fde047">Yellow</option>
+                        <option value="#ffffff">White</option>
+                        <option value="#4ade80">Green</option>
+                        <option value="#38bdf8">Blue</option>
+                      </select>
+                    </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Text Color</span>
-                  <select
-                    value={settings.subtitleColor}
-                    onChange={(e) => setSettings((p) => ({ ...p, subtitleColor: e.target.value }))}
-                    className="w-full bg-zinc-950 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="#fde047">Yellow</option>
-                    <option value="#ffffff">White</option>
-                    <option value="#4ade80">Green</option>
-                    <option value="#38bdf8">Blue</option>
-                  </select>
-                </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <FileText className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Subtitle Size</span>
+                      </span>
+                      <select
+                        value={settings.subtitleSize}
+                        onChange={(e) => setSettings((p) => ({ ...p, subtitleSize: e.target.value as any }))}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04]"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                        <option value="xlarge">Extra Large</option>
+                      </select>
+                    </div>
 
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Text Size</span>
-                  <select
-                    value={settings.subtitleSize}
-                    onChange={(e) => setSettings((p) => ({ ...p, subtitleSize: e.target.value as any }))}
-                    className="w-full bg-zinc-950 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large</option>
-                    <option value="xlarge">Extra Large</option>
-                  </select>
-                </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Delay Offset</span>
+                      </span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder="0.0s"
+                        value={settings.subtitleDelay}
+                        onChange={(e) => setSettings((p) => ({ ...p, subtitleDelay: parseFloat(e.target.value) || 0 }))}
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-mono transition-all hover:bg-white/[0.04]"
+                      />
+                    </div>
 
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">Delay</span>
-                  <div className="flex gap-1.5 items-center">
-                    <input
-                      type="number"
-                      step="0.5"
-                      placeholder="0.0s"
-                      value={settings.subtitleDelay}
-                      onChange={(e) => setSettings((p) => ({ ...p, subtitleDelay: parseFloat(e.target.value) || 0 }))}
-                      className="w-full bg-zinc-950 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:border-indigo-500 font-mono"
-                    />
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1">
+                        <FolderOpen className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Upload Subtitles</span>
+                      </span>
+                      <button
+                        onClick={handleSubtitleUploadClick}
+                        className="w-full bg-zinc-900/60 hover:bg-white/[0.05] border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 truncate font-bold"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className="truncate">Open .srt / .vtt</span>
+                      </button>
+                      <input
+                        type="file"
+                        ref={subtitleInputRef}
+                        onChange={handleSubtitleFileChange}
+                        accept=".srt,.vtt"
+                        className="hidden"
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-zinc-400 font-medium">File</span>
-                  <button
-                    onClick={handleSubtitleUploadClick}
-                    className="w-full bg-zinc-950 hover:bg-zinc-800 border border-white/10 rounded px-2 py-1 text-[11px] text-zinc-300 transition-colors flex items-center justify-center gap-1 truncate"
-                  >
-                    <FolderOpen className="w-3 h-3 shrink-0" />
-                    <span className="truncate">Load file</span>
-                  </button>
-                  <input
-                    type="file"
-                    ref={subtitleInputRef}
-                    onChange={handleSubtitleFileChange}
-                    accept=".srt,.vtt"
-                    className="hidden"
-                  />
-                </div>
-              </div>
+              )}
             </div>
-          </div>
+          )}
 
         </div>
 
         {/* Right Side: Tabbed Config Utilities (4 Cols) */}
-        <div className="lg:col-span-4 bg-[#09090b] border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col h-full overflow-hidden">
-          {/* Tab Selection Header */}
-          <div className="p-1.5 bg-[#121214] border-b border-white/10 flex gap-1 select-none overflow-x-auto shrink-0 custom-scrollbar">
-            <button
-              onClick={() => setActiveTab('playlist')}
-              className={`flex-1 py-1 px-2.5 rounded text-xs font-semibold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                activeTab === 'playlist' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              <span>Playlist</span>
-            </button>
+        {!sidebarCollapsed && (
+          <div className="lg:col-span-4 glass-thick rounded-2xl md:rounded-3xl overflow-hidden flex flex-col h-full shadow-2xl">
+            {/* Tab Selection Header */}
+            <div className="p-2.5 bg-black/30 border-b border-white/10 flex gap-1.5 select-none overflow-x-auto shrink-0 custom-scrollbar items-center">
+              <button
+                onClick={() => setActiveTab('playlist')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 whitespace-nowrap flex-1 ${
+                  activeTab === 'playlist' ? 'glass-primary text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>Playlist</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('equalizer')}
-              className={`flex-1 py-1 px-2.5 rounded text-xs font-semibold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                activeTab === 'equalizer' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Equalizer</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('equalizer')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 whitespace-nowrap flex-1 ${
+                  activeTab === 'equalizer' ? 'glass-primary text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Equalizer</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('effects')}
-              className={`flex-1 py-1 px-2.5 rounded text-xs font-semibold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                activeTab === 'effects' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Effects</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('effects')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 whitespace-nowrap flex-1 ${
+                  activeTab === 'effects' ? 'glass-primary text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Effects</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('bookmarks')}
-              className={`flex-1 py-1 px-2.5 rounded text-xs font-semibold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                activeTab === 'bookmarks' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <BookmarkIcon className="w-3.5 h-3.5" />
-              <span>Bookmarks</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('bookmarks')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 whitespace-nowrap flex-1 ${
+                  activeTab === 'bookmarks' ? 'glass-primary text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+              >
+                <BookmarkIcon className="w-3.5 h-3.5" />
+                <span>Bookmarks</span>
+              </button>
+
+              {/* Panel Collapse Toggle */}
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-all ml-1 shrink-0"
+                title="Hide sidebar"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Dynamic Tab Body */}
+            <div className="flex-1 overflow-y-auto p-4.5 custom-scrollbar bg-transparent">
+              {activeTab === 'playlist' && (
+                <PlaylistComponent
+                  playlist={playlist}
+                  currentTrackId={currentTrackId}
+                  onSelectTrack={(id) => {
+                    setCurrentTrackId(id);
+                    setIsPlaying(true);
+                  }}
+                  onAddTrack={(track) => {
+                    const newTrack: PlaylistItem = {
+                      id: Math.random().toString(36).substr(2, 9),
+                      ...track,
+                    };
+                    setPlaylist((prev) => [newTrack, ...prev]);
+                    setCurrentTrackId(newTrack.id);
+                    setIsPlaying(true);
+                  }}
+                  onRemoveTrack={(id) => {
+                    const index = playlist.findIndex((t) => t.id === id);
+                    const updated = playlist.filter((t) => t.id !== id);
+                    setPlaylist(updated);
+                    
+                    // If removed track is currently playing, switch track
+                    if (id === currentTrackId) {
+                      if (updated.length > 0) {
+                        const nextId = updated[Math.min(index, updated.length - 1)].id;
+                        setCurrentTrackId(nextId);
+                      } else {
+                        setCurrentTrackId('');
+                        setIsPlaying(false);
+                        setCurrentTime(0);
+                        setDuration(0);
+                      }
+                    }
+                  }}
+                />
+              )}
+
+              {activeTab === 'equalizer' && (
+                <EqualizerComponent
+                  eqEnabled={eqEnabled}
+                  onToggleEq={setEqEnabled}
+                  eqGains={eqGains}
+                  onGainChange={(bandIndex, val) => {
+                    setEqGains((prev) => {
+                      const copy = [...prev];
+                      copy[bandIndex] = val;
+                      return copy;
+                    });
+                  }}
+                  preamp={preamp}
+                  onPreampChange={setPreamp}
+                />
+              )}
+
+              {activeTab === 'effects' && (
+                <VideoFiltersComponent
+                  filters={videoFilters}
+                  onChangeFilters={(updated) => {
+                    setVideoFilters((prev) => ({ ...prev, ...updated }));
+                  }}
+                  onResetFilters={() => setVideoFilters(DEFAULT_FILTERS)}
+                />
+              )}
+
+              {activeTab === 'bookmarks' && (
+                <BookmarksComponent
+                  bookmarks={bookmarks}
+                  currentTime={currentTime}
+                  onAddBookmark={handleAddBookmark}
+                  onDeleteBookmark={handleDeleteBookmark}
+                  onSeekTo={(time) => {
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = time;
+                      setCurrentTime(time);
+                    }
+                  }}
+                />
+              )}
+            </div>
           </div>
-
-          {/* Dynamic Tab Body */}
-          <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-[#09090b]">
-            {activeTab === 'playlist' && (
-              <PlaylistComponent
-                playlist={playlist}
-                currentTrackId={currentTrackId}
-                onSelectTrack={(id) => {
-                  setCurrentTrackId(id);
-                  setIsPlaying(true);
-                }}
-                onAddTrack={(track) => {
-                  const newTrack: PlaylistItem = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    ...track,
-                  };
-                  setPlaylist((prev) => [newTrack, ...prev]);
-                  setCurrentTrackId(newTrack.id);
-                  setIsPlaying(true);
-                }}
-                onRemoveTrack={(id) => {
-                  const index = playlist.findIndex((t) => t.id === id);
-                  const updated = playlist.filter((t) => t.id !== id);
-                  setPlaylist(updated);
-                  
-                  // If removed track is currently playing, switch track
-                  if (id === currentTrackId && updated.length > 0) {
-                    const nextId = updated[Math.min(index, updated.length - 1)].id;
-                    setCurrentTrackId(nextId);
-                  }
-                }}
-              />
-            )}
-
-            {activeTab === 'equalizer' && (
-              <EqualizerComponent
-                eqEnabled={eqEnabled}
-                onToggleEq={setEqEnabled}
-                eqGains={eqGains}
-                onGainChange={(bandIndex, val) => {
-                  setEqGains((prev) => {
-                    const copy = [...prev];
-                    copy[bandIndex] = val;
-                    return copy;
-                  });
-                }}
-                preamp={preamp}
-                onPreampChange={setPreamp}
-              />
-            )}
-
-            {activeTab === 'effects' && (
-              <VideoFiltersComponent
-                filters={videoFilters}
-                onChangeFilters={(updated) => {
-                  setVideoFilters((prev) => ({ ...prev, ...updated }));
-                }}
-                onResetFilters={() => setVideoFilters(DEFAULT_FILTERS)}
-              />
-            )}
-
-            {activeTab === 'bookmarks' && (
-              <BookmarksComponent
-                bookmarks={bookmarks}
-                currentTime={currentTime}
-                onAddBookmark={handleAddBookmark}
-                onDeleteBookmark={handleDeleteBookmark}
-                onSeekTo={(time) => {
-                  if (videoRef.current) {
-                    videoRef.current.currentTime = time;
-                    setCurrentTime(time);
-                  }
-                }}
-              />
-            )}
-          </div>
-        </div>
+        )}
 
       </main>
 

@@ -1,1 +1,191 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom modern range inputs across browser engines */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  height: 5px;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+}
+
+input[type="range"]:hover::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+  border-radius: 9999px;
+  height: 14px;
+  width: 14px;
+  margin-top: -4.5px; /* Centers thumb vertically */
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), 
+              0 0 0 1px rgba(255, 255, 255, 0.4),
+              0 0 10px rgba(99, 102, 241, 0.3);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 
+              0 0 0 1px rgba(255, 255, 255, 0.6),
+              0 0 15px rgba(99, 102, 241, 0.6);
+}
+
+/* Apple Liquid Glass Panels & Buttons */
+.glass-thick {
+  background: linear-gradient(145deg, rgba(20, 20, 25, 0.7) 0%, rgba(10, 10, 12, 0.85) 100%);
+  backdrop-filter: blur(30px) saturate(210%);
+  -webkit-backdrop-filter: blur(30px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 1px 1px rgba(255, 255, 255, 0.1) inset,
+    0 12px 40px -10px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.glass-panel-interactive {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-interactive:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.15) inset,
+    0 20px 48px -12px rgba(0, 0, 0, 0.85),
+    0 0 15px rgba(99, 102, 241, 0.08);
+}
+
+/* Premium Glass Buttons */
+.glass-button {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 4px 10px rgba(0, 0, 0, 0.3),
+    0 0 8px rgba(255, 255, 255, 0.05);
+}
+
+.glass-button:active {
+  transform: translateY(0.5px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow: 
+    0 1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Glossy primary active items (Apple style indigo bubble) */
+.glass-primary {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(79, 70, 229, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.3) inset,
+    0 8px 24px -4px rgba(99, 102, 241, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-primary:hover {
+  background: linear-gradient(135deg, rgba(110, 114, 244, 0.95) 0%, rgba(91, 82, 237, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1.5px);
+  box-shadow: 
+    0 1px 2px rgba(255, 255, 255, 0.4) inset,
+    0 12px 28px -6px rgba(99, 102, 241, 0.5),
+    0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.glass-primary:active {
+  transform: translateY(0);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.95) 0%, rgba(67, 56, 202, 0.95) 100%);
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.2) inset,
+    0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Focus outline styles */
+*:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+
+/* Liquid fluid backgrounds */
+@keyframes fluid-blob-1 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(12%, 18%) scale(1.15) rotate(120deg); }
+  66% { transform: translate(-10%, -15%) scale(0.9) rotate(240deg); }
+}
+
+@keyframes fluid-blob-2 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(-15%, 10%) scale(0.85) rotate(-120deg); }
+  66% { transform: translate(18%, -12%) scale(1.1) rotate(-240deg); }
+}
+
+@keyframes fluid-blob-3 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(10%, -20%) scale(1.1) rotate(90deg); }
+  66% { transform: translate(-18%, 15%) scale(0.9) rotate(180deg); }
+}
+
+.fluid-bg-1 {
+  animation: fluid-blob-1 25s infinite alternate ease-in-out;
+}
+
+.fluid-bg-2 {
+  animation: fluid-blob-2 30s infinite alternate ease-in-out;
+}
+
+.fluid-bg-3 {
+  animation: fluid-blob-3 28s infinite alternate ease-in-out;
+}
