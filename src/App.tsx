@@ -30,7 +30,9 @@ import {
   Info,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sun,
+  Timer
 } from 'lucide-react';
 
 import {
@@ -49,6 +51,7 @@ import VideoFiltersComponent from './components/VideoFiltersComponent';
 import BookmarksComponent from './components/BookmarksComponent';
 import AudioVisualizerComponent from './components/AudioVisualizerComponent';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import ShortcutsManagerComponent from './components/ShortcutsManagerComponent';
 
 // 1. Initial Sample Tracks
 const INITIAL_PLAYLIST: PlaylistItem[] = [];
@@ -92,9 +95,106 @@ export default function App() {
   const [isPiPActive, setIsPiPActive] = useState(false);
   
   // Tabs for control settings panels on the right side
-  const [activeTab, setActiveTab] = useState<'playlist' | 'equalizer' | 'effects' | 'bookmarks'>('playlist');
+  const [activeTab, setActiveTab] = useState<'playlist' | 'equalizer' | 'effects' | 'bookmarks' | 'shortcuts'>('playlist');
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [analyserActive, setAnalyserActive] = useState<AnalyserNode | null>(null);
+
+  // Hover states for collapsing Volume and Brightness
+  const [isVolumeHovered, setIsVolumeHovered] = useState(false);
+  const [isBrightnessHovered, setIsBrightnessHovered] = useState(false);
+
+  // Tap skip double-click indicators
+  const [skipFeedback, setSkipFeedback] = useState<'left' | 'right' | null>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sleep Timer states
+  const [sleepTime, setSleepTime] = useState<number>(0); // 0 means off, or 5, 15, 30, 60 minutes
+  const [sleepCountdown, setSleepCountdown] = useState<number | null>(null); // counting down in seconds
+
+  // A-B Loop State
+  const [abLoop, setAbLoop] = useState<{ a: number | null; b: number | null; active: boolean }>({
+    a: null,
+    b: null,
+    active: false,
+  });
+
+  // Customizable Hotkeys State
+  const [shortcutKeys, setShortcutKeys] = useState<{ [actionId: string]: string }>({
+    playPause: ' ',
+    stop: 's',
+    prevTrack: 'p',
+    nextTrack: 'n',
+    forward: 'ArrowRight',
+    backward: 'ArrowLeft',
+    volumeUp: 'ArrowUp',
+    volumeDown: 'ArrowDown',
+    speedUp: ']',
+    speedDown: '[',
+    resetVideo: 'backspace',
+    bookmark: 'b',
+    pip: 'v',
+    screenshot: 'i',
+    clearLoop: 'c'
+  });
+
+  // Sleep Timer Countdown effect
+  useEffect(() => {
+    if (sleepCountdown === null) return;
+    if (sleepCountdown <= 0) {
+      if (isPlaying) {
+        // Pause playback
+        const video = videoRef.current;
+        if (video) {
+          video.pause();
+          setIsPlaying(false);
+        }
+      }
+      setSleepCountdown(null);
+      setSleepTime(0);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setSleepCountdown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [sleepCountdown, isPlaying]);
+
+  const handleSetSleepTime = (minutes: number) => {
+    setSleepTime(minutes);
+    if (minutes > 0) {
+      setSleepCountdown(minutes * 60);
+    } else {
+      setSleepCountdown(null);
+    }
+  };
+
+  // Load saved progress on track change (Progress Auto-Save)
+  useEffect(() => {
+    if (!currentTrackId) return;
+
+    const savedProgress = localStorage.getItem(`vlc_progress_${currentTrackId}`);
+    if (savedProgress) {
+      const savedTime = parseFloat(savedProgress);
+      if (savedTime > 3) {
+        // Automatically seek to saved progress
+        const timer = setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.currentTime = savedTime;
+            setCurrentTime(savedTime);
+          }
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentTrackId]);
+
+  // Save current progress periodically
+  useEffect(() => {
+    if (!currentTrackId || currentTime <= 2) return;
+    localStorage.setItem(`vlc_progress_${currentTrackId}`, currentTime.toString());
+  }, [currentTime, currentTrackId]);
 
   // Equalizer states
   const [eqEnabled, setEqEnabled] = useState(false);
@@ -321,6 +421,58 @@ export default function App() {
     video.currentTime = 0;
     setIsPlaying(false);
     setCurrentTime(0);
+  };
+
+  // Handle video/audio time update and A-B Looping
+  const handleTimeUpdate = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const time = video.currentTime;
+    setCurrentTime(time);
+
+    // If A-B loop is set and active, check boundaries
+    if (abLoop.active && abLoop.a !== null && abLoop.b !== null) {
+      if (time >= abLoop.b) {
+        video.currentTime = abLoop.a;
+        setCurrentTime(abLoop.a);
+      }
+    }
+  };
+
+  // Handle stage click: single click to play/pause, double click left/right to skip 10s
+  const handleVideoStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickRatio = clickX / rect.width;
+
+    if (e.detail === 2) {
+      // Clear any pending single-click action
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+
+      if (clickRatio < 0.5) {
+        // Double-clicked on the left side
+        seek(-10);
+        setSkipFeedback('left');
+        setTimeout(() => setSkipFeedback(null), 800);
+      } else {
+        // Double-clicked on the right side
+        seek(10);
+        setSkipFeedback('right');
+        setTimeout(() => setSkipFeedback(null), 800);
+      }
+    } else if (e.detail === 1) {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+      clickTimeoutRef.current = setTimeout(() => {
+        togglePlay();
+        clickTimeoutRef.current = null;
+      }, 250);
+    }
   };
 
   // Handle Seek Forward / Backward
@@ -567,69 +719,68 @@ export default function App() {
         return;
       }
 
-      const key = e.key.toLowerCase();
+      // Space key translates to readable label 'Space'
+      const pressedKey = e.key === ' ' ? 'Space' : e.key;
+      const pressedLower = pressedKey.toLowerCase();
 
-      switch (e.key) {
-        case ' ': // Space key
-          e.preventDefault();
-          togglePlay();
+      // Look up corresponding action from our custom mappings
+      let triggeredAction: string | null = null;
+      for (const [actionId, boundKey] of Object.entries(shortcutKeys)) {
+        if (String(boundKey).toLowerCase() === pressedLower) {
+          triggeredAction = actionId;
           break;
-        case 'ArrowRight':
-          e.preventDefault();
-          seek(5);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          seek(-5);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setVolume((prev) => Math.min(2.0, prev + 0.1));
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          setVolume((prev) => Math.max(0.0, prev - 0.1));
-          break;
-        default:
-          break;
+        }
       }
 
-      switch (key) {
-        case 'f':
-          e.preventDefault();
-          toggleFullscreen();
+      if (!triggeredAction) return;
+
+      e.preventDefault();
+
+      switch (triggeredAction) {
+        case 'playPause':
+          togglePlay();
           break;
-        case 'm':
-          e.preventDefault();
-          toggleMute();
-          break;
-        case 's':
-          e.preventDefault();
+        case 'stop':
           handleStop();
           break;
-        case '[':
-          e.preventDefault();
-          setSettings((prev) => ({ ...prev, speed: Math.max(0.25, prev.speed - 0.25) }));
-          break;
-        case ']':
-          e.preventDefault();
-          setSettings((prev) => ({ ...prev, speed: Math.min(4.0, prev.speed + 0.25) }));
-          break;
-        case 'n':
-          e.preventDefault();
-          playNextTrack();
-          break;
-        case 'p':
-          e.preventDefault();
+        case 'prevTrack':
           playPreviousTrack();
           break;
-        case 'b':
-          e.preventDefault();
-          handleAddBookmark(currentTime, `Hotkey Tagged @ ${Math.floor(currentTime)}s`);
+        case 'nextTrack':
+          playNextTrack();
           break;
-        case 'backspace':
-          e.preventDefault();
+        case 'forward':
+          seek(5);
+          break;
+        case 'backward':
+          seek(-5);
+          break;
+        case 'volumeUp':
+          setVolume((prev) => Math.min(2.0, prev + 0.1));
+          break;
+        case 'volumeDown':
+          setVolume((prev) => Math.max(0.0, prev - 0.1));
+          break;
+        case 'speedUp':
+          setSettings((prev) => ({ ...prev, speed: Math.min(4.0, prev.speed + 0.25) }));
+          break;
+        case 'speedDown':
+          setSettings((prev) => ({ ...prev, speed: Math.max(0.25, prev.speed - 0.25) }));
+          break;
+        case 'resetVideo':
           setVideoFilters(DEFAULT_FILTERS);
+          break;
+        case 'bookmark':
+          handleAddBookmark(currentTime, `Hotkey Saved @ ${Math.floor(currentTime)}s`);
+          break;
+        case 'pip':
+          togglePiP();
+          break;
+        case 'screenshot':
+          takeScreenshot();
+          break;
+        case 'clearLoop':
+          setAbLoop({ a: null, b: null, active: false });
           break;
         default:
           break;
@@ -638,7 +789,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, currentTime, duration, volume, isMuted, currentTrackId, playlist, settings]);
+  }, [isPlaying, currentTime, duration, volume, isMuted, currentTrackId, playlist, settings, shortcutKeys]);
 
   // Sync playback speed rate on the video element
   useEffect(() => {
@@ -796,17 +947,49 @@ export default function App() {
 
             {/* Video or Audio Visualizer Stage */}
             <div className="relative flex-1 flex items-center justify-center bg-zinc-950 overflow-hidden">
+              {/* Invisible Click Overlay for Double Click Skip and Single Click Pause */}
+              {currentTrack && (
+                <div 
+                  onClick={handleVideoStageClick}
+                  className="absolute inset-0 z-10 cursor-pointer"
+                  title="Double click left/right to skip 10s. Single click to Play/Pause."
+                />
+              )}
+
+              {/* Skip Visual Feedback Overlay */}
+              <AnimatePresence>
+                {skipFeedback === 'left' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-16 top-1/2 -translate-y-1/2 bg-black/75 backdrop-blur-md border border-white/10 p-5 rounded-full flex flex-col items-center justify-center text-white pointer-events-none z-30 shadow-2xl shadow-black/80"
+                  >
+                    <ChevronLeft className="w-6 h-6 text-indigo-400 animate-pulse" />
+                    <span className="text-[10px] font-bold font-mono tracking-wider mt-1">-10s</span>
+                  </motion.div>
+                )}
+                {skipFeedback === 'right' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-16 top-1/2 -translate-y-1/2 bg-black/75 backdrop-blur-md border border-white/10 p-5 rounded-full flex flex-col items-center justify-center text-white pointer-events-none z-30 shadow-2xl shadow-black/80"
+                  >
+                    <ChevronRight className="w-6 h-6 text-indigo-400 animate-pulse" />
+                    <span className="text-[10px] font-bold font-mono tracking-wider mt-1">+10s</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {currentTrack ? (
                 currentTrack.type === 'video' ? (
                   <video
                     ref={videoRef}
                     src={currentTrack.url}
-                    onClick={togglePlay}
-                    onTimeUpdate={() => {
-                      if (videoRef.current) {
-                        setCurrentTime(videoRef.current.currentTime);
-                      }
-                    }}
+                    onTimeUpdate={handleTimeUpdate}
                     onDurationChange={() => {
                       if (videoRef.current) {
                         setDuration(videoRef.current.duration);
@@ -824,11 +1007,7 @@ export default function App() {
                     <video
                       ref={videoRef}
                       src={currentTrack.url}
-                      onTimeUpdate={() => {
-                        if (videoRef.current) {
-                          setCurrentTime(videoRef.current.currentTime);
-                        }
-                      }}
+                      onTimeUpdate={handleTimeUpdate}
                       onDurationChange={() => {
                         if (videoRef.current) {
                           setDuration(videoRef.current.duration);
@@ -906,27 +1085,33 @@ export default function App() {
               {/* Control Buttons row */}
               <div className="w-full grid grid-cols-1 lg:grid-cols-3 items-center gap-4 relative">
                 
-                {/* 1. Volume controls & Quick Stats - now on the left */}
-                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-start lg:justify-self-start">
-                  {/* Volume Slider Block */}
-                  <div className="flex items-center gap-2.5 bg-white/[0.03] border border-white/10 px-4 py-2 rounded-2xl shadow-inner shrink-0">
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        onClick={toggleMute}
-                        className="text-zinc-300 hover:text-white transition-colors shrink-0"
-                        title="Mute"
-                      >
-                        {isMuted || volume === 0 ? (
-                          <VolumeX className="w-4 h-4" />
-                        ) : volume > 1.2 ? (
-                          <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
-                        ) : volume > 0.5 ? (
-                          <Volume2 className="w-4 h-4" />
-                        ) : (
-                          <Volume1 className="w-4 h-4" />
-                        )}
-                      </button>
-
+                {/* 1. Volume & Brightness controls & Quick Stats - now on the left */}
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-start lg:justify-self-start select-none">
+                  
+                  {/* Collapsible Volume Button (expands on hover) */}
+                  <div 
+                    onMouseEnter={() => setIsVolumeHovered(true)}
+                    onMouseLeave={() => setIsVolumeHovered(false)}
+                    className="flex items-center bg-white/[0.03] border border-white/10 p-1.5 rounded-2xl shadow-inner shrink-0 transition-all duration-300 h-10 overflow-hidden depth-card"
+                  >
+                    <button
+                      onClick={toggleMute}
+                      className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1.5 hover:bg-white/[0.05] rounded-xl"
+                      title="Mute Volume"
+                      type="button"
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="w-4 h-4" />
+                      ) : volume > 1.2 ? (
+                        <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
+                      ) : volume > 0.5 ? (
+                        <Volume2 className="w-4 h-4" />
+                      ) : (
+                        <Volume1 className="w-4 h-4" />
+                      )}
+                    </button>
+                    
+                    <div className={`flex items-center transition-all duration-300 ease-in-out ${isVolumeHovered ? 'w-24 opacity-100 ml-1.5 gap-2' : 'w-0 opacity-0 ml-0 overflow-hidden'}`}>
                       <input
                         type="range"
                         min="0"
@@ -934,52 +1119,83 @@ export default function App() {
                         step="0.05"
                         value={isMuted ? 0 : volume}
                         onChange={handleVolumeChange}
-                        className="w-16 sm:w-24 h-1.5 rounded-full appearance-none cursor-pointer"
+                        className="w-14 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
                       />
+                      <span className={`text-[9px] font-mono font-bold tracking-tight shrink-0 w-8 text-right ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
+                        {Math.round(volume * 100)}%
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-mono font-bold tracking-tight w-8 text-right shrink-0 ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
-                      {Math.round(volume * 100)}%
-                    </span>
                   </div>
 
-                  {/* Playback Stats Badges */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Speed Badge Button */}
+                  {/* Collapsible Brightness Button (expands on hover) */}
+                  <div 
+                    onMouseEnter={() => setIsBrightnessHovered(true)}
+                    onMouseLeave={() => setIsBrightnessHovered(false)}
+                    className="flex items-center bg-white/[0.03] border border-white/10 p-1.5 rounded-2xl shadow-inner shrink-0 transition-all duration-300 h-10 overflow-hidden depth-card"
+                  >
+                    <button
+                      onClick={() => setVideoFilters((prev) => ({ ...prev, brightness: prev.brightness === 100 ? 50 : 100 }))}
+                      className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1.5 hover:bg-white/[0.05] rounded-xl"
+                      title="Screen Brightness"
+                      type="button"
+                    >
+                      <Sun className="w-4 h-4 text-amber-400" />
+                    </button>
+                    
+                    <div className={`flex items-center transition-all duration-300 ease-in-out ${isBrightnessHovered ? 'w-24 opacity-100 ml-1.5 gap-2' : 'w-0 opacity-0 ml-0 overflow-hidden'}`}>
+                      <input
+                        type="range"
+                        min="20"
+                        max="200"
+                        step="5"
+                        value={videoFilters.brightness}
+                        onChange={(e) => setVideoFilters((prev) => ({ ...prev, brightness: parseInt(e.target.value) }))}
+                        className="w-14 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
+                      />
+                      <span className="text-[9px] font-mono font-bold tracking-tight text-zinc-300 shrink-0 w-8 text-right">
+                        {videoFilters.brightness}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Playback Stats Badges (Fully functional buttons with hover labels) */}
+                  <div className="flex items-center gap-1.5">
+                    {/* Speed Button */}
                     <button
                       onClick={cycleSpeed}
                       type="button"
-                      className="group flex items-center gap-0 hover:gap-1.5 bg-white/[0.05] border border-white/12 p-2 hover:px-2.5 rounded-xl text-zinc-300 transition-all duration-300 cursor-pointer shadow-lg shadow-black/30 depth-button"
-                      title="Click to cycle playback speed"
+                      className="group relative flex items-center justify-center bg-white/[0.04] border border-white/12 p-2 rounded-xl text-zinc-300 hover:text-white transition-all duration-300 shadow-md depth-button h-10 w-10 hover:w-20 overflow-hidden"
+                      title="Set Playback Speed"
                     >
                       <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span className="w-0 overflow-hidden group-hover:w-10 text-[10px] font-bold font-mono leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                      <span className="w-0 overflow-hidden group-hover:w-auto group-hover:ml-1.5 text-[10px] font-bold font-mono leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
                         {settings.speed.toFixed(2)}x
                       </span>
                     </button>
 
-                    {/* Aspect Ratio Badge Button */}
+                    {/* Aspect Ratio Button */}
                     <button
                       onClick={cycleAspectRatio}
                       type="button"
-                      className="group flex items-center gap-0 hover:gap-1.5 bg-white/[0.05] border border-white/12 p-2 hover:px-2.5 rounded-xl text-zinc-300 transition-all duration-300 cursor-pointer shadow-lg shadow-black/30 depth-button"
-                      title="Click to cycle aspect ratio"
+                      className="group relative flex items-center justify-center bg-white/[0.04] border border-white/12 p-2 rounded-xl text-zinc-300 hover:text-white transition-all duration-300 shadow-md depth-button h-10 w-10 hover:w-24 overflow-hidden"
+                      title="Aspect Ratio Fit"
                     >
                       <Maximize className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span className="w-0 overflow-hidden group-hover:w-12 text-[10px] font-bold capitalize leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                      <span className="w-0 overflow-hidden group-hover:w-auto group-hover:ml-1.5 text-[10px] font-bold capitalize leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
                         {settings.aspectRatio}
                       </span>
                     </button>
 
-                    {/* Subtitle Loaded Badge Button */}
+                    {/* Subtitle Loaded Button */}
                     <button
                       onClick={handleSubtitleUploadClick}
                       type="button"
-                      className="group flex items-center gap-0 hover:gap-1.5 bg-white/[0.05] border border-white/12 p-2 hover:px-2.5 rounded-xl text-zinc-300 transition-all duration-300 cursor-pointer shadow-lg shadow-black/30 max-w-[150px] depth-button"
-                      title="Click to load subtitles file"
+                      className="group relative flex items-center justify-center bg-white/[0.04] border border-white/12 p-2 rounded-xl text-zinc-300 hover:text-white transition-all duration-300 shadow-md depth-button h-10 w-10 hover:w-28 overflow-hidden"
+                      title="Load Subtitles File"
                     >
                       <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span className="w-0 overflow-hidden group-hover:max-w-[100px] text-[10px] font-bold truncate leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
-                        {subtitleTrackName}
+                      <span className="w-0 overflow-hidden group-hover:w-auto group-hover:ml-1.5 text-[10px] font-bold truncate leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                        {subtitleTrackName === 'No subtitles loaded' ? 'Load Subs' : subtitleTrackName}
                       </span>
                     </button>
                   </div>
@@ -1038,10 +1254,62 @@ export default function App() {
 
                 {/* 3. Utility Actions - now on the right */}
                 <div className="flex items-center gap-1.5 w-full justify-center lg:justify-end lg:justify-self-end">
+                  
+                  {/* A-B Loop Button */}
+                  <button
+                    onClick={() => {
+                      if (abLoop.a === null) {
+                        setAbLoop({ a: currentTime, b: null, active: false });
+                      } else if (abLoop.b === null) {
+                        if (currentTime > abLoop.a) {
+                          setAbLoop({ a: abLoop.a, b: currentTime, active: true });
+                        } else {
+                          setAbLoop({ a: currentTime, b: null, active: false });
+                        }
+                      } else {
+                        setAbLoop({ a: null, b: null, active: false });
+                      }
+                    }}
+                    className={`p-2 rounded-xl transition-all duration-250 hover:scale-110 active:scale-95 flex items-center justify-center gap-1 border text-[10px] font-bold ${
+                      abLoop.active 
+                        ? 'bg-emerald-600/30 text-emerald-300 border-emerald-500/40' 
+                        : abLoop.a !== null 
+                        ? 'bg-amber-600/20 text-amber-300 border-amber-500/30 animate-pulse' 
+                        : 'text-zinc-300 hover:text-white hover:bg-white/[0.06] border-transparent'
+                    }`}
+                    title={abLoop.active ? "A-B Loop Active. Click to Reset Loop" : abLoop.a !== null ? `A set at ${formatTime(abLoop.a)}. Click again to set End B` : "Set A-B Repeat Loop"}
+                    type="button"
+                  >
+                    <span className="font-sans">A⇄B</span>
+                    {abLoop.a !== null && (
+                      <span className="text-[8px] font-mono font-bold">
+                        {abLoop.active ? 'On' : 'A'}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Sleep Timer Preset Selector Button */}
+                  <button
+                    onClick={() => handleSetSleepTime(sleepTime === 0 ? 15 : sleepTime === 15 ? 30 : sleepTime === 30 ? 60 : 0)}
+                    className={`p-2 rounded-xl transition-all duration-250 hover:scale-110 active:scale-95 flex items-center justify-center gap-1 border ${
+                      sleepTime > 0 ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/40 font-bold' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06] border-transparent'
+                    }`}
+                    title="Sleep Timer: auto-pauses when expires. Click to cycle (15m, 30m, 60m, off)"
+                    type="button"
+                  >
+                    <Timer className="w-4 h-4" />
+                    {sleepTime > 0 && (
+                      <span className="text-[9px] font-mono font-bold">
+                        {sleepCountdown !== null ? `${Math.ceil(sleepCountdown / 60)}m` : `${sleepTime}m`}
+                      </span>
+                    )}
+                  </button>
+
                   <button
                     onClick={takeScreenshot}
                     className="p-2 text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-250 hover:scale-110 active:scale-95"
                     title="Screenshot"
+                    type="button"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
