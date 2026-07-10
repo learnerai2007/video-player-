@@ -9,12 +9,18 @@ import {
   SkipBack, 
   Volume2, 
   Volume1, 
+  VolumeX,
   Maximize, 
   Bookmark, 
   Camera, 
   SlidersHorizontal,
   Tv,
-  RefreshCw
+  RefreshCw,
+  Repeat,
+  Monitor,
+  Layout,
+  Gauge,
+  Eye
 } from 'lucide-react';
 
 interface ShortcutsManagerComponentProps {
@@ -38,6 +44,14 @@ interface ShortcutsManagerComponentProps {
   onTogglePiP: () => void;
   onScreenshot: () => void;
   onClearLoop: () => void;
+  
+  // New actions handlers
+  onToggleFullscreen: () => void;
+  onToggleMute: () => void;
+  onCycleLoop: () => void;
+  onCycleAspectRatio: () => void;
+  onResetSpeed: () => void;
+  onToggleSidebar: () => void;
 }
 
 interface ActionDefinition {
@@ -66,7 +80,13 @@ export default function ShortcutsManagerComponent({
   onResetFilters,
   onTogglePiP,
   onScreenshot,
-  onClearLoop
+  onClearLoop,
+  onToggleFullscreen,
+  onToggleMute,
+  onCycleLoop,
+  onCycleAspectRatio,
+  onResetSpeed,
+  onToggleSidebar
 }: ShortcutsManagerComponentProps) {
   const [listeningAction, setListeningAction] = useState<string | null>(null);
 
@@ -96,21 +116,27 @@ export default function ShortcutsManagerComponent({
     { id: 'stop', label: 'Stop Media', category: 'Playback', icon: <Square className="w-3.5 h-3.5" />, trigger: onStop },
     { id: 'prevTrack', label: 'Previous File', category: 'Playback', icon: <SkipBack className="w-3.5 h-3.5" />, trigger: onPrev },
     { id: 'nextTrack', label: 'Next File', category: 'Playback', icon: <SkipForward className="w-3.5 h-3.5" />, trigger: onNext },
+    { id: 'fullscreen', label: 'Fullscreen', category: 'Playback', icon: <Monitor className="w-3.5 h-3.5" />, trigger: onToggleFullscreen },
+    { id: 'loop', label: 'Repeat Mode', category: 'Playback', icon: <Repeat className="w-3.5 h-3.5" />, trigger: onCycleLoop },
     
     { id: 'forward', label: 'Skip Forward 5s', category: 'Navigation', icon: <RefreshCw className="w-3.5 h-3.5" />, trigger: onForward },
     { id: 'backward', label: 'Skip Backward 5s', category: 'Navigation', icon: <RotateCcw className="w-3.5 h-3.5" />, trigger: onBackward },
     
-    { id: 'volumeUp', label: 'Volume Up 10%', category: 'Audio', icon: <Volume2 className="w-3.5 h-3.5" />, trigger: onVolumeUp },
-    { id: 'volumeDown', label: 'Volume Down 10%', category: 'Audio', icon: <Volume1 className="w-3.5 h-3.5" />, trigger: onVolumeDown },
+    { id: 'volumeUp', label: 'Volume Up', category: 'Audio', icon: <Volume2 className="w-3.5 h-3.5" />, trigger: onVolumeUp },
+    { id: 'volumeDown', label: 'Volume Down', category: 'Audio', icon: <Volume1 className="w-3.5 h-3.5" />, trigger: onVolumeDown },
+    { id: 'mute', label: 'Mute / Unmute', category: 'Audio', icon: <VolumeX className="w-3.5 h-3.5" />, trigger: onToggleMute },
     
-    { id: 'speedUp', label: 'Faster Speed', category: 'Adjustments', icon: <SkipForward className="w-3.5 h-3.5 text-amber-400" />, trigger: onSpeedUp },
-    { id: 'speedDown', label: 'Slower Speed', category: 'Adjustments', icon: <SkipBack className="w-3.5 h-3.5 text-amber-400" />, trigger: onSpeedDown },
+    { id: 'speedUp', label: 'Increase Speed', category: 'Adjustments', icon: <SkipForward className="w-3.5 h-3.5 text-amber-400" />, trigger: onSpeedUp },
+    { id: 'speedDown', label: 'Decrease Speed', category: 'Adjustments', icon: <SkipBack className="w-3.5 h-3.5 text-amber-400" />, trigger: onSpeedDown },
+    { id: 'speedReset', label: 'Normal Speed (1x)', category: 'Adjustments', icon: <Gauge className="w-3.5 h-3.5 text-amber-400" />, trigger: onResetSpeed },
+    { id: 'aspectRatio', label: 'Aspect Ratio', category: 'Adjustments', icon: <Layout className="w-3.5 h-3.5" />, trigger: onCycleAspectRatio },
     { id: 'resetVideo', label: 'Reset Picture Adjust', category: 'Adjustments', icon: <SlidersHorizontal className="w-3.5 h-3.5" />, trigger: onResetFilters },
     
     { id: 'bookmark', label: 'Save Bookmark', category: 'Features', icon: <Bookmark className="w-3.5 h-3.5" />, trigger: onAddBookmark },
-    { id: 'pip', label: 'Toggle Floating Player', category: 'Features', icon: <Tv className="w-3.5 h-3.5" />, trigger: onTogglePiP },
-    { id: 'screenshot', label: 'Take Picture Frame', category: 'Features', icon: <Camera className="w-3.5 h-3.5" />, trigger: onScreenshot },
-    { id: 'clearLoop', label: 'Reset A-B Loop', category: 'Features', icon: <RefreshCw className="w-3.5 h-3.5" />, trigger: onClearLoop }
+    { id: 'pip', label: 'Floating Player', category: 'Features', icon: <Tv className="w-3.5 h-3.5" />, trigger: onTogglePiP },
+    { id: 'screenshot', label: 'Take Screenshot', category: 'Features', icon: <Camera className="w-3.5 h-3.5" />, trigger: onScreenshot },
+    { id: 'clearLoop', label: 'Reset Repeat Loop', category: 'Features', icon: <RefreshCw className="w-3.5 h-3.5" />, trigger: onClearLoop },
+    { id: 'sidebar', label: 'Show / Hide Sidebar', category: 'Features', icon: <Eye className="w-3.5 h-3.5" />, trigger: onToggleSidebar }
   ];
 
   // Group by category

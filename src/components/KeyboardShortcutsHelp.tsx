@@ -2,6 +2,7 @@ import React from 'react';
 import { Keyboard, X } from 'lucide-react';
 
 interface KeyboardShortcutsHelpProps {
+  shortcutKeys: { [actionId: string]: string };
   onClose: () => void;
 }
 
@@ -10,28 +11,36 @@ interface ShortcutItem {
   action: string;
 }
 
-export default function KeyboardShortcutsHelp({ onClose }: KeyboardShortcutsHelpProps) {
+export default function KeyboardShortcutsHelp({ shortcutKeys, onClose }: KeyboardShortcutsHelpProps) {
+  const getBinding = (actionId: string, defaultFallback: string): string => {
+    return shortcutKeys[actionId] || defaultFallback;
+  };
+
   const generalShortcuts: ShortcutItem[] = [
-    { key: 'Space', action: 'Play / Pause' },
-    { key: 'F', action: 'Toggle Fullscreen' },
-    { key: 'M', action: 'Toggle Mute' },
-    { key: 'S', action: 'Stop playback' },
+    { key: getBinding('playPause', 'Space'), action: 'Play / Pause' },
+    { key: getBinding('fullscreen', 'F'), action: 'Toggle Fullscreen' },
+    { key: getBinding('mute', 'M'), action: 'Toggle Mute' },
+    { key: getBinding('stop', 'S'), action: 'Stop Media' },
   ];
 
   const navigationShortcuts: ShortcutItem[] = [
-    { key: '← Arrow', action: 'Seek back 5s' },
-    { key: '→ Arrow', action: 'Seek forward 5s' },
-    { key: '↑ Arrow', action: 'Volume up 10%' },
-    { key: '↓ Arrow', action: 'Volume down 10%' },
+    { key: getBinding('backward', '← Arrow'), action: 'Seek back 5s' },
+    { key: getBinding('forward', '→ Arrow'), action: 'Seek forward 5s' },
+    { key: getBinding('volumeUp', '↑ Arrow'), action: 'Volume up 10%' },
+    { key: getBinding('volumeDown', '↓ Arrow'), action: 'Volume down 10%' },
   ];
 
   const advancedShortcuts: ShortcutItem[] = [
-    { key: '[', action: 'Slower speed' },
-    { key: ']', action: 'Faster speed' },
-    { key: 'N', action: 'Next track' },
-    { key: 'P', action: 'Previous track' },
-    { key: 'B', action: 'Add bookmark' },
-    { key: 'Backspace', action: 'Reset video' },
+    { key: getBinding('speedDown', '['), action: 'Slower speed' },
+    { key: getBinding('speedUp', ']'), action: 'Faster speed' },
+    { key: getBinding('speedReset', 'R'), action: 'Reset speed 1.0x' },
+    { key: getBinding('nextTrack', 'N'), action: 'Next track' },
+    { key: getBinding('prevTrack', 'P'), action: 'Previous track' },
+    { key: getBinding('bookmark', 'B'), action: 'Add bookmark' },
+    { key: getBinding('loop', 'L'), action: 'Cycle repeat mode' },
+    { key: getBinding('aspectRatio', 'A'), action: 'Cycle aspect ratio' },
+    { key: getBinding('sidebar', 'H'), action: 'Toggle sidebar panel' },
+    { key: getBinding('resetVideo', 'Backspace'), action: 'Reset picture adjustment' },
   ];
 
   return (

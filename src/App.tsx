@@ -24,6 +24,7 @@ import {
   Shuffle,
   FileText,
   Plus,
+  Minus,
   Trash2,
   Tv,
   Keyboard,
@@ -103,6 +104,56 @@ export default function App() {
   const [isVolumeHovered, setIsVolumeHovered] = useState(false);
   const [isBrightnessHovered, setIsBrightnessHovered] = useState(false);
 
+  // Themes list
+  const THEMES = [
+    { id: 'indigo', name: 'Indigo', primary: '#6366f1', rgb: '99, 102, 241', rgbSecondary: '79, 70, 229', colorClass: 'bg-[#6366f1]' },
+    { id: 'emerald', name: 'Emerald', primary: '#10b981', rgb: '16, 185, 129', rgbSecondary: '5, 150, 105', colorClass: 'bg-emerald-500' },
+    { id: 'amber', name: 'Amber', primary: '#f59e0b', rgb: '245, 158, 11', rgbSecondary: '217, 119, 6', colorClass: 'bg-amber-500' },
+    { id: 'rose', name: 'Rose', primary: '#f43f5e', rgb: '244, 63, 94', rgbSecondary: '225, 29, 72', colorClass: 'bg-rose-500' },
+    { id: 'violet', name: 'Violet', primary: '#8b5cf6', rgb: '139, 92, 246', rgbSecondary: '124, 58, 237', colorClass: 'bg-violet-500' },
+    { id: 'cyan', name: 'Cyan', primary: '#06b6d4', rgb: '6, 182, 212', rgbSecondary: '13, 148, 136', colorClass: 'bg-cyan-500' },
+  ];
+
+  const [activeTheme, setActiveTheme] = useState<string>(() => {
+    return localStorage.getItem('vlc_theme') || 'indigo';
+  });
+
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+
+  // Hover and position states for the interactive timeline volume/engagement graph
+  const [isTimelineHovered, setIsTimelineHovered] = useState(false);
+  const [timelineHoverX, setTimelineHoverX] = useState<number | null>(null);
+
+  // Apply theme dynamically to documentElement style
+  useEffect(() => {
+    localStorage.setItem('vlc_theme', activeTheme);
+    const themeObj = THEMES.find((t) => t.id === activeTheme) || THEMES[0];
+    document.documentElement.style.setProperty('--theme-color-primary', themeObj.primary);
+    document.documentElement.style.setProperty('--theme-color-primary-rgb', themeObj.rgb);
+    document.documentElement.style.setProperty('--theme-color-primary-secondary-rgb', themeObj.rgbSecondary);
+  }, [activeTheme]);
+
+  // Deterministic heat/volume graph generator based on track ID
+  const generateHeatGraph = (trackId: string) => {
+    const points = [];
+    let seed = 0;
+    const cleanId = trackId || 'default';
+    for (let i = 0; i < cleanId.length; i++) {
+      seed += cleanId.charCodeAt(i);
+    }
+    for (let i = 0; i < 50; i++) {
+      const val = 15 + Math.sin(i * 0.22 + seed * 0.1) * 22 + Math.cos(i * 0.45 - seed * 0.05) * 18 + Math.sin(i * 0.8) * 12;
+      points.push(Math.max(5, Math.min(100, Math.round(val))));
+    }
+    return points;
+  };
+
+  const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setTimelineHoverX(x);
+  };
+
   // Tap skip double-click indicators
   const [skipFeedback, setSkipFeedback] = useState<'left' | 'right' | null>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -118,24 +169,45 @@ export default function App() {
     active: false,
   });
 
-  // Customizable Hotkeys State
-  const [shortcutKeys, setShortcutKeys] = useState<{ [actionId: string]: string }>({
-    playPause: ' ',
-    stop: 's',
-    prevTrack: 'p',
-    nextTrack: 'n',
-    forward: 'ArrowRight',
-    backward: 'ArrowLeft',
-    volumeUp: 'ArrowUp',
-    volumeDown: 'ArrowDown',
-    speedUp: ']',
-    speedDown: '[',
-    resetVideo: 'backspace',
-    bookmark: 'b',
-    pip: 'v',
-    screenshot: 'i',
-    clearLoop: 'c'
+  // Customizable Hotkeys State with localStorage support
+  const [shortcutKeys, setShortcutKeys] = useState<{ [actionId: string]: string }>(() => {
+    const saved = localStorage.getItem('vlc_shortcut_keys');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse shortcut keys", e);
+      }
+    }
+    return {
+      playPause: ' ',
+      stop: 's',
+      prevTrack: 'p',
+      nextTrack: 'n',
+      forward: 'ArrowRight',
+      backward: 'ArrowLeft',
+      volumeUp: 'ArrowUp',
+      volumeDown: 'ArrowDown',
+      speedUp: ']',
+      speedDown: '[',
+      resetVideo: 'backspace',
+      bookmark: 'b',
+      pip: 'v',
+      screenshot: 'i',
+      clearLoop: 'c',
+      fullscreen: 'f',
+      mute: 'm',
+      loop: 'l',
+      aspectRatio: 'a',
+      speedReset: 'r',
+      sidebar: 'h',
+    };
   });
+
+  // Save shortcuts when updated
+  useEffect(() => {
+    localStorage.setItem('vlc_shortcut_keys', JSON.stringify(shortcutKeys));
+  }, [shortcutKeys]);
 
   // Sleep Timer Countdown effect
   useEffect(() => {
@@ -241,6 +313,21 @@ export default function App() {
     setSettings((prev) => ({ ...prev, aspectRatio: ratios[nextIdx] }));
   };
 
+  const cycleLoopMode = () => {
+    const modes: ('none' | 'one' | 'all')[] = ['none', 'one', 'all'];
+    const currentIdx = modes.indexOf(settings.loop);
+    const nextIdx = (currentIdx + 1) % modes.length;
+    setSettings((prev) => ({ ...prev, loop: modes[nextIdx] }));
+  };
+
+  const resetSpeed = () => {
+    setSettings((prev) => ({ ...prev, speed: 1.0 }));
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const [showSettingsSection, setShowSettingsSection] = useState(true);
   const [showSubtitlesSection, setShowSubtitlesSection] = useState(true);
@@ -297,7 +384,21 @@ export default function App() {
 
   // --- Web Audio Equalizer Initialization & Sync ---
   const initAudioGraph = (mediaElement: HTMLMediaElement) => {
-    if (audioContextRef.current) return;
+    if (audioContextRef.current) {
+      if (sourceNodeRef.current && (sourceNodeRef.current as any).mediaElement !== mediaElement) {
+        try {
+          sourceNodeRef.current.disconnect();
+          const newSource = audioContextRef.current.createMediaElementSource(mediaElement);
+          if (preampNodeRef.current) {
+            newSource.connect(preampNodeRef.current);
+          }
+          sourceNodeRef.current = newSource;
+        } catch (e) {
+          console.warn("Could not recreate media element source:", e);
+        }
+      }
+      return;
+    }
 
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -313,6 +414,9 @@ export default function App() {
       // Preamp Gain Node
       const preampNode = context.createGain();
       preampNodeRef.current = preampNode;
+      
+      // Connect source to preamp
+      source.connect(preampNode);
 
       // 10 Biquad Filters
       const filters: BiquadFilterNode[] = [];
@@ -495,7 +599,7 @@ export default function App() {
     if (!video) return;
     // Native volume only goes 0 to 1
     video.volume = isMuted ? 0 : Math.min(1.0, volume);
-  }, [volume, isMuted]);
+  }, [volume, isMuted, currentTrack]);
 
   // Volume slider handler
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -782,6 +886,24 @@ export default function App() {
         case 'clearLoop':
           setAbLoop({ a: null, b: null, active: false });
           break;
+        case 'fullscreen':
+          toggleFullscreen();
+          break;
+        case 'mute':
+          toggleMute();
+          break;
+        case 'loop':
+          cycleLoopMode();
+          break;
+        case 'aspectRatio':
+          cycleAspectRatio();
+          break;
+        case 'speedReset':
+          resetSpeed();
+          break;
+        case 'sidebar':
+          toggleSidebar();
+          break;
         default:
           break;
       }
@@ -842,10 +964,10 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#060608] text-zinc-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-white overflow-hidden">
+    <div className="relative min-h-screen bg-[#060608] text-zinc-100 flex flex-col font-sans selection:bg-theme-primary/30 selection:text-white overflow-hidden">
       {/* Dynamic Ambient Fluid Backdrops */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none opacity-50">
-        <div className="bg-gradient-to-tr from-indigo-600/25 to-violet-600/25 blur-[130px] rounded-full w-[45vw] h-[45vw] absolute -top-[10%] -left-[10%] fluid-bg-1" />
+        <div className="bg-gradient-to-tr from-theme-primary/25 to-violet-600/25 blur-[130px] rounded-full w-[45vw] h-[45vw] absolute -top-[10%] -left-[10%] fluid-bg-1" />
         <div className="bg-gradient-to-tr from-fuchsia-600/15 to-pink-600/15 blur-[140px] rounded-full w-[50vw] h-[50vw] absolute top-[30%] -right-[15%] fluid-bg-2" />
         <div className="bg-gradient-to-tr from-cyan-600/25 to-emerald-600/15 blur-[120px] rounded-full w-[40vw] h-[40vw] absolute -bottom-[10%] left-[15%] fluid-bg-3" />
       </div>
@@ -857,10 +979,10 @@ export default function App() {
         <div className={`${sidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col overflow-y-auto p-1.5 space-y-4 custom-scrollbar`}>
           
           {/* Top Bar: Now Playing & Toggles */}
-          <div className="glass-thick depth-card p-3 md:p-3.5 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row gap-3.5 items-center justify-between transition-all duration-300">
+          <div className="relative z-[100] glass-thick depth-card p-3 md:p-3.5 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row gap-3.5 items-center justify-between transition-all duration-300">
             {/* Now Playing info */}
             <div className="flex items-center gap-2.5 w-full sm:w-auto min-w-0">
-              <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20 shrink-0">
+              <div className="p-2 bg-theme-primary/10 rounded-xl text-theme-primary border border-theme-primary/20 shrink-0">
                 <PlayCircle className={`w-4 h-4 ${isPlaying ? 'animate-pulse' : ''}`} />
               </div>
               <div className="min-w-0">
@@ -871,6 +993,58 @@ export default function App() {
 
             {/* Toggles bar */}
             <div className="flex items-center gap-1.5 border-t sm:border-t-0 sm:border-l border-white/10 pt-2.5 sm:pt-0 pl-0 sm:pl-3 w-full sm:w-auto justify-end">
+              {/* Theme Customizer Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowThemeMenu(!showThemeMenu)}
+                  type="button"
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all"
+                  title="Change Theme Color"
+                >
+                  <SlidersHorizontal className="w-4 h-4 shrink-0" style={{ color: 'var(--theme-color-primary)' }} />
+                </button>
+
+                <AnimatePresence>
+                  {showThemeMenu && (
+                    <>
+                      {/* Transparent backdrop to click-to-close */}
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setShowThemeMenu(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        className="absolute top-12 right-0 bg-zinc-950/95 border border-white/15 p-2 rounded-2xl shadow-2xl z-50 flex flex-col gap-1 w-44 backdrop-blur-xl depth-card"
+                      >
+                        <div className="text-[9px] font-mono font-bold text-zinc-500 px-2 py-1 uppercase tracking-wider select-none">
+                          Select Theme
+                        </div>
+                        {THEMES.map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              setActiveTheme(t.id);
+                              setShowThemeMenu(false);
+                            }}
+                            type="button"
+                            className={`flex items-center gap-2.5 w-full text-left px-2 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                              activeTheme === t.id 
+                                ? 'bg-white/10 text-white' 
+                                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
+                            }`}
+                          >
+                            <span className={`w-3.5 h-3.5 rounded-full ${t.colorClass} border border-white/20 shadow-inner shrink-0`} />
+                            <span className="truncate">{t.name}</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
               {/* Keyboard Shortcuts button */}
               <button
                 onClick={() => setShowShortcutsHelp(true)}
@@ -887,7 +1061,7 @@ export default function App() {
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                 className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
                   !sidebarCollapsed
-                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                    ? 'bg-theme-primary/20 border-theme-primary/30 text-theme-primary'
                     : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
                 }`}
                 title={!sidebarCollapsed ? "Hide Sidebar" : "Show Sidebar"}
@@ -900,7 +1074,7 @@ export default function App() {
                 onClick={() => setShowSettingsSection(!showSettingsSection)}
                 className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
                   showSettingsSection
-                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                    ? 'bg-theme-primary/20 border-theme-primary/30 text-theme-primary'
                     : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
                 }`}
                 title={showSettingsSection ? "Hide Settings" : "Show Settings"}
@@ -913,7 +1087,7 @@ export default function App() {
                 onClick={() => setShowSubtitlesSection(!showSubtitlesSection)}
                 className={`p-2 rounded-xl border font-bold transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
                   showSubtitlesSection
-                    ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300'
+                    ? 'bg-theme-primary/20 border-theme-primary/30 text-theme-primary'
                     : 'bg-black/30 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
                 }`}
                 title={showSubtitlesSection ? "Hide Subtitles" : "Show Subtitles"}
@@ -931,17 +1105,17 @@ export default function App() {
             onDrop={handlePlayerDrop}
             className={`relative flex-1 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 depth-card ${
               playerDragging 
-                ? 'border-indigo-400 ring-4 ring-indigo-500/20' 
+                ? 'border-theme-primary ring-4 ring-theme-primary/20' 
                 : ''
             }`}
             style={{ minHeight: '380px' }}
           >
             {/* Overlay feedback for dropping files */}
             {playerDragging && (
-              <div className="absolute inset-0 bg-indigo-600/20 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-center pointer-events-none border-2 border-dashed border-indigo-500 m-2 rounded-md">
-                <FolderOpen className="w-10 h-10 text-indigo-400 animate-bounce mb-2" />
+              <div className="absolute inset-0 bg-theme-primary/20 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-center pointer-events-none border-2 border-dashed border-theme-primary m-2 rounded-md">
+                <FolderOpen className="w-10 h-10 text-theme-primary animate-bounce mb-2" />
                 <p className="text-xs font-semibold text-white">Drop video or audio file here</p>
-                <p className="text-[10px] text-indigo-300 mt-1">Plays MP4, WebM, MP3, and WAV</p>
+                <p className="text-[10px] text-theme-primary mt-1">Plays MP4, WebM, MP3, and WAV</p>
               </div>
             )}
 
@@ -966,7 +1140,7 @@ export default function App() {
                     transition={{ duration: 0.2 }}
                     className="absolute left-16 top-1/2 -translate-y-1/2 bg-black/75 backdrop-blur-md border border-white/10 p-5 rounded-full flex flex-col items-center justify-center text-white pointer-events-none z-30 shadow-2xl shadow-black/80"
                   >
-                    <ChevronLeft className="w-6 h-6 text-indigo-400 animate-pulse" />
+                    <ChevronLeft className="w-6 h-6 text-theme-primary animate-pulse" />
                     <span className="text-[10px] font-bold font-mono tracking-wider mt-1">-10s</span>
                   </motion.div>
                 )}
@@ -978,7 +1152,7 @@ export default function App() {
                     transition={{ duration: 0.2 }}
                     className="absolute right-16 top-1/2 -translate-y-1/2 bg-black/75 backdrop-blur-md border border-white/10 p-5 rounded-full flex flex-col items-center justify-center text-white pointer-events-none z-30 shadow-2xl shadow-black/80"
                   >
-                    <ChevronRight className="w-6 h-6 text-indigo-400 animate-pulse" />
+                    <ChevronRight className="w-6 h-6 text-theme-primary animate-pulse" />
                     <span className="text-[10px] font-bold font-mono tracking-wider mt-1">+10s</span>
                   </motion.div>
                 )}
@@ -1027,7 +1201,7 @@ export default function App() {
                 )
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 text-center text-zinc-400 space-y-3 max-w-xs mx-auto">
-                  <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 border border-indigo-500/20">
+                  <div className="p-3 bg-theme-primary/10 rounded-2xl text-theme-primary border border-theme-primary/20">
                     <Tv className="w-6 h-6" />
                   </div>
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider">No media loaded</h3>
@@ -1061,21 +1235,73 @@ export default function App() {
             {/* Customized Media Player Control Bar */}
             <div className="bg-black/30 backdrop-blur-2xl p-5 flex flex-col gap-4 z-20 border-t border-white/10">
               
-              {/* Timeline Slider with progress labels */}
-              <div className="flex items-center gap-3">
+              {/* Timeline Slider with progress labels & YouTube-style volume/heat graph on hover */}
+              <div className="flex items-center gap-3 select-none">
                 <span className="text-[10px] font-mono font-medium text-zinc-300 w-10 text-right">
                   {formatTime(currentTime)}
                 </span>
                 
-                <input
-                  type="range"
-                  min="0"
-                  max={duration || 100}
-                  step="0.1"
-                  value={currentTime}
-                  onChange={handleTimelineChange}
-                  className="flex-1 h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer"
-                />
+                <div 
+                  className="flex-1 relative h-10 flex items-center group cursor-pointer"
+                  onMouseMove={handleTimelineMouseMove}
+                  onMouseEnter={() => setIsTimelineHovered(true)}
+                  onMouseLeave={() => {
+                    setIsTimelineHovered(false);
+                    setTimelineHoverX(null);
+                  }}
+                >
+                  {/* YouTube style Volume/Heat Graph on hover */}
+                  <AnimatePresence>
+                    {isTimelineHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        className="absolute bottom-8 left-0 right-0 h-12 pointer-events-none pb-1 flex items-end gap-[1px]"
+                      >
+                        {generateHeatGraph(currentTrackId).map((val, idx) => {
+                          const percent = (idx / 50) * 100;
+                          const hoverPercent = timelineHoverX !== null ? timelineHoverX * 100 : 0;
+                          const isBeforeHover = percent <= hoverPercent;
+                          return (
+                            <div
+                              key={idx}
+                              style={{ height: `${val}%` }}
+                              className={`flex-1 rounded-t-[1px] transition-all duration-150 ${
+                                isBeforeHover 
+                                  ? 'bg-gradient-to-t from-[var(--theme-color-primary,#6366f1)]/80 to-[var(--theme-color-primary,#6366f1)]/40' 
+                                  : 'bg-white/10'
+                              }`}
+                            />
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Hover time tooltip */}
+                  {isTimelineHovered && timelineHoverX !== null && (
+                    <div 
+                      className="absolute bottom-20 bg-zinc-900/95 text-white text-[10px] font-mono px-2 py-1 rounded-lg border border-white/10 shadow-xl pointer-events-none transform -translate-x-1/2 z-30"
+                      style={{ left: `${timelineHoverX * 100}%` }}
+                    >
+                      {formatTime(timelineHoverX * (duration || 0))}
+                    </div>
+                  )}
+
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    step="0.1"
+                    value={currentTime}
+                    onChange={handleTimelineChange}
+                    className="w-full h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer absolute z-10"
+                    style={{
+                      background: `linear-gradient(to right, var(--theme-color-primary, #6366f1) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.08) ${(currentTime / (duration || 1)) * 100}%)`
+                    }}
+                  />
+                </div>
 
                 <span className="text-[10px] font-mono font-medium text-zinc-300 w-10 text-left">
                   {formatTime(duration)}
@@ -1085,33 +1311,48 @@ export default function App() {
               {/* Control Buttons row */}
               <div className="w-full grid grid-cols-1 lg:grid-cols-3 items-center gap-4 relative">
                 
-                {/* 1. Volume & Brightness controls & Quick Stats - now on the left */}
-                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-start lg:justify-self-start select-none">
+                {/* 1. Volume, Brightness & Playback Speed Controls with Steppers - now on the left */}
+                <div className="flex flex-nowrap items-center gap-2.5 w-full lg:w-auto justify-start select-none">
                   
-                  {/* Collapsible Volume Button (expands on hover) */}
-                  <div 
-                    onMouseEnter={() => setIsVolumeHovered(true)}
-                    onMouseLeave={() => setIsVolumeHovered(false)}
-                    className="flex items-center bg-white/[0.03] border border-white/10 p-1.5 rounded-2xl shadow-inner shrink-0 transition-all duration-300 h-10 overflow-hidden depth-card"
-                  >
-                    <button
-                      onClick={toggleMute}
-                      className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1.5 hover:bg-white/[0.05] rounded-xl"
-                      title="Mute Volume"
-                      type="button"
-                    >
-                      {isMuted || volume === 0 ? (
-                        <VolumeX className="w-4 h-4" />
-                      ) : volume > 1.2 ? (
-                        <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
-                      ) : volume > 0.5 ? (
-                        <Volume2 className="w-4 h-4" />
-                      ) : (
-                        <Volume1 className="w-4 h-4" />
-                      )}
-                    </button>
-                    
-                    <div className={`flex items-center transition-all duration-300 ease-in-out ${isVolumeHovered ? 'w-24 opacity-100 ml-1.5 gap-2' : 'w-0 opacity-0 ml-0 overflow-hidden'}`}>
+                  {/* Premium Volume Controller with Steppers */}
+                  <div className="relative w-10 h-10 shrink-0 group">
+                    <div className="absolute left-0 top-0 flex items-center bg-[#13131a]/95 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl shadow-inner h-10 depth-card transition-all hover:border-white/20 overflow-hidden w-10 group-hover:w-[176px] z-10 hover:z-20">
+                      <button
+                        onClick={toggleMute}
+                        className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1 hover:bg-white/[0.05] rounded-lg w-7 h-7 flex items-center justify-center"
+                        title="Mute Volume (Double-click to reset 100%)"
+                        onDoubleClick={() => {
+                          setVolume(1.0);
+                          setIsMuted(false);
+                        }}
+                        type="button"
+                      >
+                        {isMuted || volume === 0 ? (
+                          <VolumeX className="w-4 h-4 text-theme-primary" />
+                        ) : volume > 1.2 ? (
+                          <Volume2 className="w-4 h-4 text-theme-primary animate-pulse" />
+                        ) : volume > 0.5 ? (
+                          <Volume2 className="w-4 h-4 text-theme-primary" />
+                        ) : (
+                          <Volume1 className="w-4 h-4 text-theme-primary" />
+                        )}
+                      </button>
+                      
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 min-w-[136px] ml-2 transition-opacity duration-300 delay-100">
+                      {/* Volume Minus Stepper */}
+                      <button
+                        onClick={() => {
+                          const newVol = Math.max(0, volume - 0.1);
+                          setVolume(parseFloat(newVol.toFixed(2)));
+                          if (newVol > 0 && isMuted) setIsMuted(false);
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs font-bold w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded transition-all"
+                        title="Lower volume"
+                        type="button"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+
                       <input
                         type="range"
                         min="0"
@@ -1119,30 +1360,77 @@ export default function App() {
                         step="0.05"
                         value={isMuted ? 0 : volume}
                         onChange={handleVolumeChange}
-                        className="w-14 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
+                        className="w-16 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
                       />
-                      <span className={`text-[9px] font-mono font-bold tracking-tight shrink-0 w-8 text-right ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}>
+
+                      {/* Volume Plus Stepper */}
+                      <button
+                        onClick={() => {
+                          const newVol = Math.min(2.0, volume + 0.1);
+                          setVolume(parseFloat(newVol.toFixed(2)));
+                          if (newVol > 0 && isMuted) setIsMuted(false);
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs font-bold w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded transition-all"
+                        title="Raise volume"
+                        type="button"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+
+                      <span 
+                        onClick={() => {
+                          setVolume(1.0);
+                          setIsMuted(false);
+                        }}
+                        className={`text-[10px] font-mono font-bold tracking-tight shrink-0 w-8 text-right cursor-pointer hover:text-white transition-colors ${volume > 1.0 ? 'text-rose-400' : 'text-zinc-300'}`}
+                        title="Click to reset to 100%"
+                      >
                         {Math.round(volume * 100)}%
                       </span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Collapsible Brightness Button (expands on hover) */}
-                  <div 
-                    onMouseEnter={() => setIsBrightnessHovered(true)}
-                    onMouseLeave={() => setIsBrightnessHovered(false)}
-                    className="flex items-center bg-white/[0.03] border border-white/10 p-1.5 rounded-2xl shadow-inner shrink-0 transition-all duration-300 h-10 overflow-hidden depth-card"
-                  >
-                    <button
-                      onClick={() => setVideoFilters((prev) => ({ ...prev, brightness: prev.brightness === 100 ? 50 : 100 }))}
-                      className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1.5 hover:bg-white/[0.05] rounded-xl"
-                      title="Screen Brightness"
-                      type="button"
-                    >
-                      <Sun className="w-4 h-4 text-amber-400" />
-                    </button>
-                    
-                    <div className={`flex items-center transition-all duration-300 ease-in-out ${isBrightnessHovered ? 'w-24 opacity-100 ml-1.5 gap-2' : 'w-0 opacity-0 ml-0 overflow-hidden'}`}>
+                  {/* Premium Brightness Controller with Steppers */}
+                  <div className="relative w-10 h-10 shrink-0 group">
+                    <div className="absolute left-0 top-0 flex items-center bg-[#13131a]/95 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl shadow-inner h-10 depth-card transition-all hover:border-white/20 overflow-hidden w-10 group-hover:w-[176px] z-10 hover:z-20">
+                      <button
+                        onClick={() => {
+                          // Cycles 50% -> 100% -> 150%
+                          setVideoFilters((prev) => {
+                            const current = prev.brightness;
+                            let next = 100;
+                            if (current === 100) next = 50;
+                            else if (current === 50) next = 150;
+                            return { ...prev, brightness: next };
+                          });
+                        }}
+                        className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1 hover:bg-white/[0.05] rounded-lg w-7 h-7 flex items-center justify-center"
+                        title="Cycle Brightness (Double-click to reset 100%)"
+                        onDoubleClick={() => {
+                          setVideoFilters((prev) => ({ ...prev, brightness: 100 }));
+                        }}
+                        type="button"
+                      >
+                        <Sun className="w-4 h-4 text-theme-primary" />
+                      </button>
+                      
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 min-w-[136px] ml-2 transition-opacity duration-300 delay-100">
+                      {/* Brightness Minus Stepper */}
+                      <button
+                        onClick={() => {
+                          setVideoFilters((prev) => ({
+                            ...prev,
+                            brightness: Math.max(20, prev.brightness - 10)
+                          }));
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs font-bold w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded transition-all"
+                        title="Lower brightness"
+                        type="button"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+
                       <input
                         type="range"
                         min="20"
@@ -1150,28 +1438,109 @@ export default function App() {
                         step="5"
                         value={videoFilters.brightness}
                         onChange={(e) => setVideoFilters((prev) => ({ ...prev, brightness: parseInt(e.target.value) }))}
-                        className="w-14 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
+                        className="w-16 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
                       />
-                      <span className="text-[9px] font-mono font-bold tracking-tight text-zinc-300 shrink-0 w-8 text-right">
+
+                      {/* Brightness Plus Stepper */}
+                      <button
+                        onClick={() => {
+                          setVideoFilters((prev) => ({
+                            ...prev,
+                            brightness: Math.min(200, prev.brightness + 10)
+                          }));
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs font-bold w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded transition-all"
+                        title="Raise brightness"
+                        type="button"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+
+                      <span 
+                        onClick={() => {
+                          setVideoFilters((prev) => ({ ...prev, brightness: 100 }));
+                        }}
+                        className="text-[10px] font-mono font-bold tracking-tight text-zinc-300 shrink-0 w-8 text-right cursor-pointer hover:text-white transition-colors"
+                        title="Click to reset to 100%"
+                      >
                         {videoFilters.brightness}%
                       </span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Playback Stats Badges (Fully functional buttons with hover labels) */}
-                  <div className="flex items-center gap-1.5">
-                    {/* Speed Button */}
-                    <button
-                      onClick={cycleSpeed}
-                      type="button"
-                      className="group relative flex items-center justify-center bg-white/[0.04] border border-white/12 p-2 rounded-xl text-zinc-300 hover:text-white transition-all duration-300 shadow-md depth-button h-10 w-10 hover:w-20 overflow-hidden"
-                      title="Set Playback Speed"
-                    >
-                      <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span className="w-0 overflow-hidden group-hover:w-auto group-hover:ml-1.5 text-[10px] font-bold font-mono leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                  {/* Premium Playback Speed Controller with Steppers */}
+                  <div className="relative w-10 h-10 shrink-0 group">
+                    <div className="absolute left-0 top-0 flex items-center bg-[#13131a]/95 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl shadow-inner h-10 depth-card transition-all hover:border-white/20 overflow-hidden w-10 group-hover:w-[184px] z-10 hover:z-20">
+                      <button
+                        onClick={cycleSpeed}
+                        className="text-zinc-300 hover:text-white transition-colors shrink-0 p-1 hover:bg-white/[0.05] rounded-lg w-7 h-7 flex items-center justify-center"
+                        title="Cycle Speed (Double-click to reset 1.0x)"
+                        onDoubleClick={() => {
+                          setSettings((prev) => ({ ...prev, speed: 1.0 }));
+                        }}
+                        type="button"
+                      >
+                        <Clock className="w-4 h-4 text-theme-primary" />
+                      </button>
+                      
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 min-w-[144px] ml-2 transition-opacity duration-300 delay-100">
+                      {/* Speed Minus Stepper */}
+                      <button
+                        onClick={() => {
+                          setSettings((prev) => ({
+                            ...prev,
+                            speed: Math.max(0.25, parseFloat((prev.speed - 0.1).toFixed(2)))
+                          }));
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs font-bold w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded transition-all"
+                        title="Slower speed"
+                        type="button"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+
+                      <input
+                        type="range"
+                        min="0.25"
+                        max="3.0"
+                        step="0.05"
+                        value={settings.speed}
+                        onChange={(e) => {
+                          const val = parseFloat(parseFloat(e.target.value).toFixed(2));
+                          setSettings((prev) => ({ ...prev, speed: val }));
+                        }}
+                        className="w-14 h-1 bg-white/10 rounded-full appearance-none cursor-pointer shrink-0"
+                      />
+
+                      {/* Speed Plus Stepper */}
+                      <button
+                        onClick={() => {
+                          setSettings((prev) => ({
+                            ...prev,
+                            speed: Math.min(3.0, parseFloat((prev.speed + 0.1).toFixed(2)))
+                          }));
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs font-bold w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded transition-all"
+                        title="Faster speed"
+                        type="button"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+
+                      <span 
+                        onClick={() => {
+                          setSettings((prev) => ({ ...prev, speed: 1.0 }));
+                        }}
+                        className="text-[10px] font-mono font-bold tracking-tight text-zinc-300 shrink-0 w-11 text-right cursor-pointer hover:text-white transition-colors"
+                        title="Click to reset to 1.0x"
+                      >
                         {settings.speed.toFixed(2)}x
                       </span>
-                    </button>
+                    </div>
+                  </div>
+                </div>
+                  <div className="flex items-center gap-1.5">
 
                     {/* Aspect Ratio Button */}
                     <button
@@ -1180,7 +1549,7 @@ export default function App() {
                       className="group relative flex items-center justify-center bg-white/[0.04] border border-white/12 p-2 rounded-xl text-zinc-300 hover:text-white transition-all duration-300 shadow-md depth-button h-10 w-10 hover:w-24 overflow-hidden"
                       title="Aspect Ratio Fit"
                     >
-                      <Maximize className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <Maximize className="w-4 h-4 shrink-0" style={{ color: 'var(--theme-color-primary)' }} />
                       <span className="w-0 overflow-hidden group-hover:w-auto group-hover:ml-1.5 text-[10px] font-bold capitalize leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
                         {settings.aspectRatio}
                       </span>
@@ -1193,11 +1562,13 @@ export default function App() {
                       className="group relative flex items-center justify-center bg-white/[0.04] border border-white/12 p-2 rounded-xl text-zinc-300 hover:text-white transition-all duration-300 shadow-md depth-button h-10 w-10 hover:w-28 overflow-hidden"
                       title="Load Subtitles File"
                     >
-                      <FileText className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <FileText className="w-4 h-4 shrink-0" style={{ color: 'var(--theme-color-primary)' }} />
                       <span className="w-0 overflow-hidden group-hover:w-auto group-hover:ml-1.5 text-[10px] font-bold truncate leading-none opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
                         {subtitleTrackName === 'No subtitles loaded' ? 'Load Subs' : subtitleTrackName}
                       </span>
                     </button>
+
+
                   </div>
                 </div>
 
@@ -1292,7 +1663,7 @@ export default function App() {
                   <button
                     onClick={() => handleSetSleepTime(sleepTime === 0 ? 15 : sleepTime === 15 ? 30 : sleepTime === 30 ? 60 : 0)}
                     className={`p-2 rounded-xl transition-all duration-250 hover:scale-110 active:scale-95 flex items-center justify-center gap-1 border ${
-                      sleepTime > 0 ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/40 font-bold' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06] border-transparent'
+                      sleepTime > 0 ? 'bg-theme-primary/30 text-theme-primary border-theme-primary/40 font-bold' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06] border-transparent'
                     }`}
                     title="Sleep Timer: auto-pauses when expires. Click to cycle (15m, 30m, 60m, off)"
                     type="button"
@@ -1318,7 +1689,7 @@ export default function App() {
                     <button
                       onClick={togglePiP}
                       className={`p-2 rounded-xl transition-all duration-250 hover:scale-110 active:scale-95 ${
-                        isPiPActive ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+                        isPiPActive ? 'bg-theme-primary/30 text-theme-primary border border-theme-primary/40' : 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
                       }`}
                       title="PiP"
                     >
@@ -1348,7 +1719,7 @@ export default function App() {
               {/* Playback speed, loops, ratio options */}
               {showSettingsSection && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider font-display">
+                  <h3 className="text-xs font-bold text-theme-primary flex items-center gap-1.5 uppercase tracking-wider font-display">
                     <Settings className="w-3.5 h-3.5" />
                     <span>Playback Settings</span>
                   </h3>
@@ -1362,7 +1733,7 @@ export default function App() {
                       <select
                         value={settings.speed}
                         onChange={(e) => setSettings((p) => ({ ...p, speed: parseFloat(e.target.value) }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-theme-primary/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="0.25">0.25x (Slow)</option>
                         <option value="0.5">0.50x</option>
@@ -1383,7 +1754,7 @@ export default function App() {
                       <select
                         value={settings.aspectRatio}
                         onChange={(e) => setSettings((p) => ({ ...p, aspectRatio: e.target.value as AspectRatioType }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-theme-primary/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="fit">Fit Container</option>
                         <option value="fill">Fill Canvas</option>
@@ -1403,7 +1774,7 @@ export default function App() {
                           onClick={() => setSettings((p) => ({ ...p, loop: p.loop === 'one' ? 'none' : 'one' }))}
                           className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 depth-button ${
                             settings.loop === 'one'
-                              ? 'bg-indigo-600/30 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/20'
+                              ? 'bg-theme-primary/30 border-theme-primary/50 text-white shadow-lg shadow-theme-primary/20'
                               : 'text-zinc-300'
                           }`}
                           title="Repeat Current File"
@@ -1415,7 +1786,7 @@ export default function App() {
                           onClick={() => setSettings((p) => ({ ...p, shuffle: !p.shuffle }))}
                           className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 depth-button ${
                             settings.shuffle
-                              ? 'bg-indigo-600/30 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/20'
+                              ? 'bg-theme-primary/30 border-theme-primary/50 text-white shadow-lg shadow-theme-primary/20'
                               : 'text-zinc-300'
                           }`}
                           title="Mix playlist randomly"
@@ -1435,7 +1806,7 @@ export default function App() {
                         onClick={() => setVideoFilters(DEFAULT_FILTERS)}
                         className="w-full rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all flex items-center justify-center gap-1.5 font-bold depth-button"
                       >
-                        <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
+                        <RotateCcw className="w-3.5 h-3.5 text-theme-primary" />
                         <span>Reset Filters</span>
                       </button>
                     </div>
@@ -1446,7 +1817,7 @@ export default function App() {
               {/* Subtitle custom tracks uploader and delay config */}
               {showSubtitlesSection && (
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider font-display">
+                  <h3 className="text-xs font-bold text-theme-primary flex items-center gap-1.5 uppercase tracking-wider font-display">
                     <FileText className="w-3.5 h-3.5" />
                     <span>Subtitle Customizer</span>
                   </h3>
@@ -1460,7 +1831,7 @@ export default function App() {
                       <select
                         value={settings.subtitleColor}
                         onChange={(e) => setSettings((p) => ({ ...p, subtitleColor: e.target.value }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-theme-primary/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="#fde047">Yellow</option>
                         <option value="#ffffff">White</option>
@@ -1477,7 +1848,7 @@ export default function App() {
                       <select
                         value={settings.subtitleSize}
                         onChange={(e) => setSettings((p) => ({ ...p, subtitleSize: e.target.value as any }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-theme-primary/30 transition-all cursor-pointer hover:bg-white/[0.04] depth-input"
                       >
                         <option value="small">Small</option>
                         <option value="medium">Medium</option>
@@ -1497,7 +1868,7 @@ export default function App() {
                         placeholder="0.0s"
                         value={settings.subtitleDelay}
                         onChange={(e) => setSettings((p) => ({ ...p, subtitleDelay: parseFloat(e.target.value) || 0 }))}
-                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-mono transition-all hover:bg-white/[0.04] depth-input"
+                        className="w-full bg-zinc-900/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-theme-primary/30 font-mono transition-all hover:bg-white/[0.04] depth-input"
                       />
                     </div>
 
@@ -1510,7 +1881,7 @@ export default function App() {
                         onClick={handleSubtitleUploadClick}
                         className="w-full rounded-xl px-3 py-2 text-xs text-zinc-200 transition-all flex items-center justify-center gap-1.5 truncate font-bold depth-button"
                       >
-                        <FolderOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <FolderOpen className="w-3.5 h-3.5 text-theme-primary shrink-0" />
                         <span className="truncate">Open .srt / .vtt</span>
                       </button>
                       <input
@@ -1572,6 +1943,16 @@ export default function App() {
               >
                 <BookmarkIcon className="w-3.5 h-3.5" />
                 <span>Bookmarks</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('shortcuts')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 whitespace-nowrap flex-1 ${
+                  activeTab === 'shortcuts' ? 'glass-primary text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                }`}
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                <span>Shortcuts</span>
               </button>
 
               {/* Panel Collapse Toggle */}
@@ -1665,6 +2046,61 @@ export default function App() {
                   }}
                 />
               )}
+
+              {activeTab === 'shortcuts' && (
+                <ShortcutsManagerComponent
+                  shortcutKeys={shortcutKeys}
+                  onUpdateShortcut={(actionId, newKey) => {
+                    setShortcutKeys((prev) => ({ ...prev, [actionId]: newKey }));
+                  }}
+                  onResetToDefault={() => {
+                    setShortcutKeys({
+                      playPause: ' ',
+                      stop: 's',
+                      prevTrack: 'p',
+                      nextTrack: 'n',
+                      forward: 'ArrowRight',
+                      backward: 'ArrowLeft',
+                      volumeUp: 'ArrowUp',
+                      volumeDown: 'ArrowDown',
+                      speedUp: ']',
+                      speedDown: '[',
+                      resetVideo: 'backspace',
+                      bookmark: 'b',
+                      pip: 'v',
+                      screenshot: 'i',
+                      clearLoop: 'c',
+                      fullscreen: 'f',
+                      mute: 'm',
+                      loop: 'l',
+                      aspectRatio: 'a',
+                      speedReset: 'r',
+                      sidebar: 'h',
+                    });
+                  }}
+                  onPlayPause={togglePlay}
+                  onStop={handleStop}
+                  onPrev={playPreviousTrack}
+                  onNext={playNextTrack}
+                  onForward={() => seek(5)}
+                  onBackward={() => seek(-5)}
+                  onVolumeUp={() => setVolume((prev) => Math.min(2.0, prev + 0.1))}
+                  onVolumeDown={() => setVolume((prev) => Math.max(0.0, prev - 0.1))}
+                  onSpeedUp={() => setSettings((prev) => ({ ...prev, speed: Math.min(4.0, prev.speed + 0.25) }))}
+                  onSpeedDown={() => setSettings((prev) => ({ ...prev, speed: Math.max(0.25, prev.speed - 0.25) }))}
+                  onAddBookmark={() => handleAddBookmark(currentTime, `Saved @ ${Math.floor(currentTime)}s`)}
+                  onResetFilters={() => setVideoFilters(DEFAULT_FILTERS)}
+                  onTogglePiP={togglePiP}
+                  onScreenshot={takeScreenshot}
+                  onClearLoop={() => setAbLoop({ a: null, b: null, active: false })}
+                  onToggleFullscreen={toggleFullscreen}
+                  onToggleMute={toggleMute}
+                  onCycleLoop={cycleLoopMode}
+                  onCycleAspectRatio={cycleAspectRatio}
+                  onResetSpeed={resetSpeed}
+                  onToggleSidebar={toggleSidebar}
+                />
+              )}
             </div>
           </div>
         )}
@@ -1673,7 +2109,7 @@ export default function App() {
 
       {/* Keyboard Shortcuts Help Overlay */}
       {showShortcutsHelp && (
-        <KeyboardShortcutsHelp onClose={() => setShowShortcutsHelp(false)} />
+        <KeyboardShortcutsHelp shortcutKeys={shortcutKeys} onClose={() => setShowShortcutsHelp(false)} />
       )}
     </div>
   );
